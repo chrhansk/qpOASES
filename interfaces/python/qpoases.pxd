@@ -398,24 +398,15 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
                          const real_t* const,
                          int_t&)
 
-        returnValue init(real_t*,
-                         real_t*,
-                         real_t*,
-                         real_t*,
-                         real_t*,
-                         real_t*,
-                         real_t*,
-                         int_t&)
-
-        returnValue init(real_t*,
-                         real_t*,
-                         real_t*,
-                         real_t*,
-                         real_t*,
-                         real_t*,
-                         real_t*,
+        returnValue init(SymmetricMatrix *,
+                         const real_t* const,
+                         Matrix *,
+                         const real_t* const,
+                         const real_t* const,
+                         const real_t* const,
+                         const real_t* const,
                          int_t&,
-                         real_t*)
+                         real_t* const)
 
         returnValue hotstart(real_t*,
                              real_t*,

@@ -244,6 +244,114 @@ cdef class PyReturnValue:
     SIMPLE_STATUS_M3                      = RET_SIMPLE_STATUS_M3
 
 
+cdef unique_ptr[SymmetricMatrix] create_symm_matrix(H: np.ndarray | sp.sparse.spmatrix):
+    cdef int_t m, n, l
+    cdef real_t[:, :] H_view
+    cdef SymSparseMat* sparse_ptr = NULL
+
+    cdef int_t[:] H_rows
+    cdef int_t[:] H_cols
+    cdef real_t[:] H_data
+
+    if isinstance(H, np.ndarray):
+        H = np.atleast_2d(H)
+        if H.ndim != 2:
+            raise ValueError("Invalid matrix shape")
+
+        (m, n) = H.shape[:2]
+
+        if m != n:
+            raise ValueError("Matrix must be square")
+
+        if not H.flags.c_contiguous:
+            raise ValueError("Array must be c-continuous")
+
+        H_view = H
+
+        return unique_ptr[SymmetricMatrix](new SymDenseMat(m,
+                                                           n,
+                                                           n,
+                                                           <real_t*> &H_view[0, 0]))
+
+    else:
+        if not sp.sparse.issparse(H):
+            raise ValueError("Unknown matrix type")
+
+        if H.format != "csc":
+            warnings.warn(
+                "Matrix is required to be CSC",
+                SparseEfficiencyWarning,
+            )
+            H = H.tocsc()
+
+        (m, n) = H.shape[:2]
+
+        if m != n:
+            raise ValueError("Matrix must be square")
+
+        H_rows = H.indices.astype(sparse_int_t_type, copy=False)
+        H_cols = H.indptr.astype(sparse_int_t_type, copy=False)
+        H_data = H.data.astype(real_t_type, copy=False)
+
+        sparse_ptr = new SymSparseMat(m,
+                                      n,
+                                      <sparse_int_t*> & H_rows[0],
+                                      <sparse_int_t*> & H_cols[0],
+                                      <real_t*> & H_data[0])
+
+        deref(sparse_ptr).createDiagInfo()
+
+        return unique_ptr[SymmetricMatrix](sparse_ptr)
+
+
+cdef unique_ptr[Matrix] create_matrix(A: np.ndarray | sp.sparse.spmatrix):
+    cdef int_t m, n, l
+    cdef real_t[:, :] A_view
+
+    cdef int_t[:] A_rows
+    cdef int_t[:] A_cols
+    cdef real_t[:] A_data
+
+    if isinstance(A, np.ndarray):
+        A = np.atleast_2d(A)
+        if A.ndim != 2:
+            raise ValueError("Invalid matrix shape")
+
+        (m, n) = A.shape[:2]
+
+        if not A.flags.c_contiguous:
+            raise ValueError("Array must be c-continuous")
+
+        A_view = A
+
+        return unique_ptr[Matrix](new DenseMatrix(m,
+                                                  n,
+                                                  n,
+                                                  <real_t*> &A_view[0, 0]))
+
+    else:
+        if not sp.sparse.issparse(A):
+            raise ValueError("Unknown matrix type")
+
+        if A.format != "csc":
+            warnings.warn(
+                "Matrix is required to be CSC",
+                SparseEfficiencyWarning,
+            )
+            A = A.tocsc()
+
+        (m, n) = A.shape[:2]
+
+        A_rows = A.indices.astype(sparse_int_t_type, copy=False)
+        A_cols = A.indptr.astype(sparse_int_t_type, copy=False)
+        A_data = A.data.astype(real_t_type, copy=False)
+
+        sparse_ptr = unique_ptr[Matrix](new SparseMatrix(m,
+                                                         n,
+                                                         <sparse_int_t*> & A_rows[0],
+                                                         <sparse_int_t*> & A_cols[0],
+                                                         <real_t*> & A_data[0]))
+
 
 cdef class PyOptions:
     cdef Options *thisptr      # hold a C++ instance which we're wrapping
@@ -410,70 +518,8 @@ cdef class PyQProblemB:
         self.thisptr = make_unique[QProblemB](<int_t> nV, <HessianType> hessian_type, BT_TRUE)
         self.Hobj = None
 
-    cdef _create_symm_mat(self, H):
-        cdef int_t m, n, l
-        cdef real_t[:, :] H_view
-        cdef SymSparseMat* sparse_ptr = NULL
-
-        cdef int_t[:] H_rows
-        cdef int_t[:] H_cols
-        cdef real_t[:] H_data
-
-        if isinstance(H, np.ndarray):
-            H = np.atleast_2d(H)
-            if H.ndim != 2:
-                raise ValueError("Invalid matrix shape")
-
-            (m, n) = H.shape[:2]
-
-            if m != n:
-                raise ValueError("Matrix must be square")
-
-            if not H.flags.c_contiguous:
-                raise ValueError("Array must be c-continuous")
-
-            H_view = H
-
-            self.Hobj = H
-            self.Hptr = unique_ptr[SymmetricMatrix](new SymDenseMat(m,
-                                                                    n,
-                                                                    n,
-                                                                    <real_t*> &H_view[0, 0]))
-
-        else:
-            if not sp.sparse.issparse(H):
-                raise ValueError("Unknown matrix type")
-
-            if H.format != "csc":
-                warnings.warn(
-                    "Matrix is required to be CSC",
-                    SparseEfficiencyWarning,
-                )
-                H = H.tocsc()
-
-            (m, n) = H.shape[:2]
-
-            if m != n:
-                raise ValueError("Matrix must be square")
-
-            H_rows = H.indices.astype(sparse_int_t_type, copy=False)
-            H_cols = H.indptr.astype(sparse_int_t_type, copy=False)
-            H_data = H.data.astype(real_t_type, copy=False)
-
-            self.Hobj = H
-
-            sparse_ptr = new SymSparseMat(m,
-                                          n,
-                                          <sparse_int_t*> & H_rows[0],
-                                          <sparse_int_t*> & H_cols[0],
-                                          <real_t*> & H_data[0])
-
-            deref(sparse_ptr).createDiagInfo()
-
-            self.Hptr = unique_ptr[SymmetricMatrix](sparse_ptr)
-
     def init(self,
-             H,
+             H: np.ndarray | sp.sparse.spmatrix,
              np.ndarray[np.double_t, ndim=1] g,
              np.ndarray[np.double_t, ndim=1] lb,
              np.ndarray[np.double_t, ndim=1] ub,
@@ -491,7 +537,8 @@ cdef class PyQProblemB:
         else:
             nWSR_tmp = nWSR
 
-        self._create_symm_mat(H)
+        self.Hobj = H
+        self.Hptr = create_symm_matrix(H)
 
         if cputime > 1.e-16:
             # enable cputime as return value in argument list
@@ -584,21 +631,22 @@ cdef class PyQProblemB:
 
 
 cdef class PyQProblem:
-    cdef QProblem *thisptr      # hold a C++ instance which we're wrapping
+    cdef unique_ptr[QProblem] thisptr      # hold a C++ instance which we're wrapping
+    cdef unique_ptr[SymmetricMatrix] Hptr
+    cdef object Hobj
+    cdef unique_ptr[Matrix] Aptr
+    cdef object Aobj
 
     def __cinit__(self,
                   long nV,
                   long nC,
                   PyHessianType hessian_type=PyHessianType.UNKNOWN):
-        self.thisptr = new QProblem(nV, nC, <HessianType> hessian_type, BT_TRUE)
-
-    def __dealloc__(self):
-        del self.thisptr
+        self.thisptr = make_unique[QProblem](nV, nC, <HessianType> hessian_type, BT_TRUE)
 
     cpdef init(self,
-             np.ndarray[np.double_t, ndim=2] H,
+             H: np.ndarray | sp.sparse.spmatrix,
              np.ndarray[np.double_t, ndim=1] g,
-             np.ndarray[np.double_t, ndim=2] A,
+             A: np.ndarray | sp.sparse.spmatrix,
              np.ndarray[np.double_t, ndim=1] lb,
              np.ndarray[np.double_t, ndim=1] ub,
              np.ndarray[np.double_t, ndim=1] lbA,
@@ -617,6 +665,12 @@ cdef class PyQProblem:
         else:
             nWSR_tmp = nWSR
 
+        self.Hobj = H
+        self.Hptr = create_symm_matrix(H)
+
+        self.Aobj = A
+        self.Aptr = create_matrix(A)
+
         if cputime > 1.e-16:
             # enable cputime as return value in argument list
             if isinstance(cputime, float):
@@ -625,10 +679,10 @@ cdef class PyQProblem:
             else:
                 cput_tmp = cputime
 
-            return self.thisptr.init(
-                    <real_t*> H.data,
+            return deref(self.thisptr).init(
+                    self.Hptr.get(),
                     <real_t*> g.data,
-                    <real_t*> A.data,
+                    self.Aptr.get(),
                     <real_t*> lb.data,
                     <real_t*> ub.data,
                     <real_t*> lbA.data,
@@ -637,10 +691,10 @@ cdef class PyQProblem:
                     <real_t*> &cput_tmp.data[0]
                 )
 
-        return self.thisptr.init(
-                    <real_t*> H.data,
+        return deref(self.thisptr).init(
+                    self.Hptr.get(),
                     <real_t*> g.data,
-                    <real_t*> A.data,
+                    self.Aptr.get(),
                     <real_t*> lb.data,
                     <real_t*> ub.data,
                     <real_t*> lbA.data,
@@ -676,7 +730,7 @@ cdef class PyQProblem:
             else:
                 cput_tmp = cputime
 
-            return self.thisptr.hotstart(
+            return deref(self.thisptr).hotstart(
                     <real_t*> g.data,
                     <real_t*> lb.data,
                     <real_t*> ub.data,
@@ -686,7 +740,7 @@ cdef class PyQProblem:
                     <real_t*> &cput_tmp.data[0]
                 )
 
-        return self.thisptr.hotstart(
+        return deref(self.thisptr).hotstart(
                     <real_t*> g.data,
                     <real_t*> lb.data,
                     <real_t*> ub.data,
@@ -696,19 +750,19 @@ cdef class PyQProblem:
                 )
 
     cpdef getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
-        return self.thisptr.getPrimalSolution(<real_t*> xOpt.data)
+        return deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data)
 
     cpdef getDualSolution(self, np.ndarray[np.double_t, ndim=1] yOpt):
-        return self.thisptr.getDualSolution(<real_t*> yOpt.data)
+        return deref(self.thisptr).getDualSolution(<real_t*> yOpt.data)
 
     cpdef getObjVal(self):
-        return self.thisptr.getObjVal()
+        return deref(self.thisptr).getObjVal()
 
     cpdef printOptions(self):
-        return self.thisptr.printOptions()
+        return deref(self.thisptr).printOptions()
 
     cpdef setOptions(self, PyOptions options):
-        self.thisptr.setOptions(deref(options.thisptr))
+        deref(self.thisptr).setOptions(deref(options.thisptr))
 
 
 cdef class PySQProblem:
@@ -890,7 +944,7 @@ cdef class PySolutionAnalysis:
             np.ndarray[np.double_t, ndim=1] maxCmpl
         ):
         return self.thisptr.getKktViolation(
-                qp.thisptr,
+                qp.thisptr.get(),
                 <real_t*> maxStat.data[0],
                 <real_t*> maxFeas.data[0],
                 <real_t*> maxCmpl.data[0]
@@ -939,7 +993,7 @@ cdef class PySolutionAnalysis:
                               PyQProblem qp,
                               np.ndarray[np.double_t, ndim=1] g_b_bA_VAR,
                               np.ndarray[np.double_t, ndim=1] Primal_Dual_VAR ):
-        return self.thisptr.getVarianceCovariance(qp.thisptr,
+        return self.thisptr.getVarianceCovariance(qp.thisptr.get(),
                                                   <real_t*> g_b_bA_VAR.data,
                                                   <real_t*> Primal_Dual_VAR.data)
 
