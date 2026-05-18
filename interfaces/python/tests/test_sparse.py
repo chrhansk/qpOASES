@@ -6,14 +6,8 @@ import scipy as sp
 from numpy.testing import *
 from subprocess import Popen, PIPE, STDOUT
 
-from qpoases import PyQProblem as QProblem
 from qpoases import PyQProblemB as QProblemB
-from qpoases import PySQProblem as SQProblem
-from qpoases import PySolutionAnalysis as SolutionAnalysis
-from qpoases import PyBooleanType as BooleanType
-from qpoases import PySubjectToStatus as SubjectToStatus
-from qpoases import PyOptions as Options
-from qpoases import PyPrintLevel as PrintLevel
+from qpoases import PyHessianType as HessianType
 
 
 def test_sparse_solve():
@@ -22,15 +16,14 @@ def test_sparse_solve():
     lb = np.array([0., 0.])
     ub = np.array([1, 1.])
 
-    qp = QProblemB(2)
+    qp = QProblemB(2, HessianType.POSDEF)
 
     H = sp.sparse.eye_array(2, 2, format="csc")
 
     nWSR = 10
 
-    import pdb; pdb.set_trace()
-
-    qp.init(H, -2*x0,
+    qp.init(H,
+            -2*x0,
             lb,
             ub,
             nWSR)

@@ -72,7 +72,7 @@ cdef class PyPrintLevel:
     MEDIUM     = PL_MEDIUM
     HIGH       = PL_HIGH
 
-cdef class PyHessianType:
+cpdef enum PyHessianType:
     ZERO               = HST_ZERO
     IDENTITY           = HST_IDENTITY
     POSDEF             = HST_POSDEF
@@ -404,9 +404,10 @@ cdef class PyQProblemB:
     cdef unique_ptr[SymmetricMatrix] Hptr
     cdef object Hobj
 
-    def __cinit__(self, long nV):
-        # FIXME: allow other HessianTypes!
-        self.thisptr = make_unique[QProblemB](<int_t> nV, HST_UNKNOWN, BT_TRUE)
+    def __cinit__(self,
+                  long nV,
+                  PyHessianType hessian_type=PyHessianType.UNKNOWN):
+        self.thisptr = make_unique[QProblemB](<int_t> nV, <HessianType> hessian_type, BT_TRUE)
         self.Hobj = None
 
     cdef _create_symm_mat(self, H):
@@ -585,8 +586,11 @@ cdef class PyQProblemB:
 cdef class PyQProblem:
     cdef QProblem *thisptr      # hold a C++ instance which we're wrapping
 
-    def __cinit__(self, long nV, long nC):
-        self.thisptr = new QProblem(nV, nC, HST_UNKNOWN, BT_TRUE)
+    def __cinit__(self,
+                  long nV,
+                  long nC,
+                  PyHessianType hessian_type=PyHessianType.UNKNOWN):
+        self.thisptr = new QProblem(nV, nC, <HessianType> hessian_type, BT_TRUE)
 
     def __dealloc__(self):
         del self.thisptr
@@ -710,8 +714,8 @@ cdef class PyQProblem:
 cdef class PySQProblem:
     cdef SQProblem *thisptr      # hold a C++ instance which we're wrapping
 
-    def __cinit__(self, long nV, long nC):
-        self.thisptr = new SQProblem(nV, nC, HST_UNKNOWN, BT_TRUE)
+    def __cinit__(self, long nV, long nC, PyHessianType hessian_type=PyHessianType.UNKNOWN):
+        self.thisptr = new SQProblem(nV, nC, <HessianType> hessian_type, BT_TRUE)
 
     def __dealloc__(self):
         del self.thisptr
