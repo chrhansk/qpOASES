@@ -244,6 +244,18 @@ cdef class PyReturnValue:
     SIMPLE_STATUS_M3                      = RET_SIMPLE_STATUS_M3
 
 
+class QPOASESError(Exception):
+    def __init__(self, PyReturnValue error_code):
+        self.error_code = error_code
+        message = f"QPOASES error {str(error_code)}"
+        super().__init__(message)
+
+
+cdef check_return_value(returnValue retval):
+    if retval != SUCCESSFUL_RETURN:
+        raise QPOASESError(retval)
+
+
 cdef unique_ptr[SymmetricMatrix] create_symm_matrix(H: np.ndarray | sp.sparse.spmatrix):
     cdef int_t m, n, l
     cdef real_t[:, :] H_view
@@ -549,22 +561,20 @@ cdef class PyQProblemB:
                 cput_tmp = cputime
 
 
-                return deref(self.thisptr).init(
+                check_return_value(deref(self.thisptr).init(
                     self.Hptr.get(),
                     <real_t*> g.data,
                     <real_t*> lb.data,
                     <real_t*> ub.data,
                     <int_t&>  nWSR_tmp.data[0],
-                    <real_t*> &cput_tmp.data[0]
-                    )
+                    <real_t*> &cput_tmp.data[0]))
 
-        return deref(self.thisptr).init(
+        check_return_value(deref(self.thisptr).init(
                     self.Hptr.get(),
                     <real_t*> g.data,
                     <real_t*> lb.data,
                     <real_t*> ub.data,
-                    <int_t&> nWSR_tmp.data[0]
-                    )
+                    <int_t&> nWSR_tmp.data[0]))
 
     def hotstart(self,
              np.ndarray[np.double_t, ndim=1] g,
@@ -592,20 +602,18 @@ cdef class PyQProblemB:
             else:
                 cput_tmp = cputime#np.asarray(cputime, dtype=float)
 
-            return deref(self.thisptr).hotstart(
+            check_return_value(deref(self.thisptr).hotstart(
                     <real_t*> g.data,
                     <real_t*> lb.data,
                     <real_t*> ub.data,
                     <int_t&>  nWSR_tmp.data[0],
-                    <real_t*> &cput_tmp.data[0]
-                )
+                    <real_t*> &cput_tmp.data[0]))
 
-        return deref(self.thisptr).hotstart(
+        check_return_value(deref(self.thisptr).hotstart(
                     <real_t*> g.data,
                     <real_t*> lb.data,
                     <real_t*> ub.data,
-                    <int_t&>    nWSR_tmp.data[0]
-            )
+                    <int_t&>    nWSR_tmp.data[0]))
 
     def getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
         return deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data)
@@ -679,7 +687,7 @@ cdef class PyQProblem:
             else:
                 cput_tmp = cputime
 
-            return deref(self.thisptr).init(
+            check_return_value(deref(self.thisptr).init(
                     self.Hptr.get(),
                     <real_t*> g.data,
                     self.Aptr.get(),
@@ -688,10 +696,9 @@ cdef class PyQProblem:
                     <real_t*> lbA.data,
                     <real_t*> ubA.data,
                     <int_t&>  nWSR_tmp.data[0],
-                    <real_t*> &cput_tmp.data[0]
-                )
+                    <real_t*> &cput_tmp.data[0]))
 
-        return deref(self.thisptr).init(
+        check_return_value(deref(self.thisptr).init(
                     self.Hptr.get(),
                     <real_t*> g.data,
                     self.Aptr.get(),
@@ -699,8 +706,7 @@ cdef class PyQProblem:
                     <real_t*> ub.data,
                     <real_t*> lbA.data,
                     <real_t*> ubA.data,
-                    <int_t&>  nWSR_tmp.data[0]
-                )
+                    <int_t&>  nWSR_tmp.data[0]))
 
     cpdef hotstart(self,
              np.ndarray[np.double_t, ndim=1] g,
@@ -730,39 +736,37 @@ cdef class PyQProblem:
             else:
                 cput_tmp = cputime
 
-            return deref(self.thisptr).hotstart(
+            check_return_value(deref(self.thisptr).hotstart(
                     <real_t*> g.data,
                     <real_t*> lb.data,
                     <real_t*> ub.data,
                     <real_t*> lbA.data,
                     <real_t*> ubA.data,
                     <int_t&>  nWSR_tmp.data[0],
-                    <real_t*> &cput_tmp.data[0]
-                )
+                    <real_t*> &cput_tmp.data[0]))
 
-        return deref(self.thisptr).hotstart(
+        check_return_value(deref(self.thisptr).hotstart(
                     <real_t*> g.data,
                     <real_t*> lb.data,
                     <real_t*> ub.data,
                     <real_t*> lbA.data,
                     <real_t*> ubA.data,
-                    <int_t&>  nWSR_tmp.data[0]
-                )
+                    <int_t&>  nWSR_tmp.data[0]))
 
     cpdef getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
-        return deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data)
+        check_return_value(deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data))
 
     cpdef getDualSolution(self, np.ndarray[np.double_t, ndim=1] yOpt):
-        return deref(self.thisptr).getDualSolution(<real_t*> yOpt.data)
+        check_return_value(deref(self.thisptr).getDualSolution(<real_t*> yOpt.data))
 
     cpdef getObjVal(self):
         return deref(self.thisptr).getObjVal()
 
     cpdef printOptions(self):
-        return deref(self.thisptr).printOptions()
+        check_return_value(deref(self.thisptr).printOptions())
 
     cpdef setOptions(self, PyOptions options):
-        deref(self.thisptr).setOptions(deref(options.thisptr))
+        check_return_value(deref(self.thisptr).setOptions(deref(options.thisptr)))
 
 
 cdef class PySQProblem:
