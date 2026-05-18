@@ -35,8 +35,14 @@ import warnings
 warnings.simplefilter("once", DeprecationWarning)
 import numpy as np
 cimport numpy as np
+import scipy as sp
+
+from scipy.sparse import SparseEfficiencyWarning
 
 from cython.operator cimport dereference as deref
+
+from libcpp.memory cimport unique_ptr, make_unique
+
 
 cimport qpoases
 
@@ -45,6 +51,11 @@ def deprecation_warning_nWSR():
 
 def deprecation_warning_cputime():
     warnings.warn("\nFloat cputime will be deprecated in qpOASES 4.0.\nUse cputime = numpy.array([2.0]) as input to qp.init() and qp.hotstart()", DeprecationWarning, stacklevel=2)
+
+
+real_t_type = np.dtype('double')
+int_t_type = np.dtype('long')
+sparse_int_t_type = np.dtype('long')
 
 
 cdef str __version__ = "3.2.2"
@@ -389,16 +400,79 @@ cdef class PyOptions:
 
 
 cdef class PyQProblemB:
-    cdef QProblemB *thisptr      # hold a C++ instance which we're wrapping
+    cdef unique_ptr[QProblemB] thisptr      # hold a C++ instance which we're wrapping
+    cdef unique_ptr[SymmetricMatrix] Hptr
+    cdef object Hobj
+
     def __cinit__(self, long nV):
         # FIXME: allow other HessianTypes!
-        self.thisptr = new QProblemB(<int_t> nV, HST_UNKNOWN, BT_TRUE)
+        self.thisptr = make_unique[QProblemB](<int_t> nV, HST_UNKNOWN, BT_TRUE)
+        self.Hobj = None
 
-    def __dealloc__(self):
-        del self.thisptr
+    cdef _create_symm_mat(self, H):
+        cdef int_t m, n, l
+        cdef real_t[:, :] H_view
+        cdef SymSparseMat* sparse_ptr = NULL
+
+        cdef int_t[:] H_rows
+        cdef int_t[:] H_cols
+        cdef real_t[:] H_data
+
+        if isinstance(H, np.ndarray):
+            H = np.atleast_2d(H)
+            if H.ndim != 2:
+                raise ValueError("Invalid matrix shape")
+
+            (m, n) = H.shape[:2]
+
+            if m != n:
+                raise ValueError("Matrix must be square")
+
+            if not H.flags.c_contiguous:
+                raise ValueError("Array must be c-continuous")
+
+            H_view = H
+
+            self.Hobj = H
+            self.Hptr = unique_ptr[SymmetricMatrix](new SymDenseMat(m,
+                                                                    n,
+                                                                    n,
+                                                                    <real_t*> &H_view[0, 0]))
+
+        else:
+            if not sp.sparse.issparse(H):
+                raise ValueError("Unknown matrix type")
+
+            if H.format != "csc":
+                warnings.warn(
+                    "Matrix is required to be CSC",
+                    SparseEfficiencyWarning,
+                )
+                H = H.tocsc()
+
+            (m, n) = H.shape[:2]
+
+            if m != n:
+                raise ValueError("Matrix must be square")
+
+            H_rows = H.indices.astype(sparse_int_t_type, copy=False)
+            H_cols = H.indptr.astype(sparse_int_t_type, copy=False)
+            H_data = H.data.astype(real_t_type, copy=False)
+
+            self.Hobj = H
+
+            sparse_ptr = new SymSparseMat(m,
+                                          n,
+                                          <sparse_int_t*> & H_rows[0],
+                                          <sparse_int_t*> & H_cols[0],
+                                          <real_t*> & H_data[0])
+
+            deref(sparse_ptr).createDiagInfo()
+
+            self.Hptr = unique_ptr[SymmetricMatrix](sparse_ptr)
 
     def init(self,
-             np.ndarray[np.double_t, ndim=2] H,
+             H,
              np.ndarray[np.double_t, ndim=1] g,
              np.ndarray[np.double_t, ndim=1] lb,
              np.ndarray[np.double_t, ndim=1] ub,
@@ -412,9 +486,11 @@ cdef class PyQProblemB:
         # enable nWSR as return value in argument list
         if isinstance(nWSR, int):
             deprecation_warning_nWSR()
-            nWSR_tmp = np.array([nWSR], dtype=long)
+            nWSR_tmp = np.array([nWSR], dtype=int)
         else:
             nWSR_tmp = nWSR
+
+        self._create_symm_mat(H)
 
         if cputime > 1.e-16:
             # enable cputime as return value in argument list
@@ -424,8 +500,9 @@ cdef class PyQProblemB:
             else:
                 cput_tmp = cputime
 
-            return self.thisptr.init(
-                    <real_t*> H.data,
+
+                return deref(self.thisptr).init(
+                    self.Hptr.get(),
                     <real_t*> g.data,
                     <real_t*> lb.data,
                     <real_t*> ub.data,
@@ -433,8 +510,8 @@ cdef class PyQProblemB:
                     <real_t*> &cput_tmp.data[0]
                     )
 
-        return self.thisptr.init(
-                    <real_t*> H.data,
+        return deref(self.thisptr).init(
+                    self.Hptr.get(),
                     <real_t*> g.data,
                     <real_t*> lb.data,
                     <real_t*> ub.data,
@@ -455,7 +532,7 @@ cdef class PyQProblemB:
         # enable nWSR as return value in argument list
         if isinstance(nWSR, int):
             deprecation_warning_nWSR()
-            nWSR_tmp = np.array([nWSR], dtype=long)
+            nWSR_tmp = np.array([nWSR], dtype=int)
         else:
             nWSR_tmp = nWSR#np.asarray(nWSR, dtype=int)
 
@@ -467,7 +544,7 @@ cdef class PyQProblemB:
             else:
                 cput_tmp = cputime#np.asarray(cputime, dtype=float)
 
-            return self.thisptr.hotstart(
+            return deref(self.thisptr).hotstart(
                     <real_t*> g.data,
                     <real_t*> lb.data,
                     <real_t*> ub.data,
@@ -475,7 +552,7 @@ cdef class PyQProblemB:
                     <real_t*> &cput_tmp.data[0]
                 )
 
-        return self.thisptr.hotstart(
+        return deref(self.thisptr).hotstart(
                     <real_t*> g.data,
                     <real_t*> lb.data,
                     <real_t*> ub.data,
@@ -483,26 +560,26 @@ cdef class PyQProblemB:
             )
 
     def getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
-        return self.thisptr.getPrimalSolution(<real_t*> xOpt.data)
+        return deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data)
 
     def getDualSolution(self, np.ndarray[np.double_t, ndim=1] yOpt):
-        return self.thisptr.getDualSolution(<real_t*> yOpt.data)
+        return deref(self.thisptr).getDualSolution(<real_t*> yOpt.data)
 
     def getObjVal(self):
-        return self.thisptr.getObjVal()
+        return deref(self.thisptr).getObjVal()
 
     def printOptions(self):
-        return self.thisptr.printOptions()
+        return deref(self.thisptr).printOptions()
 
     def getOptions(self):
         # FIXME: memory management? who deallocates o
-        cdef Options *o = new Options(self.thisptr.getOptions())
+        cdef Options *o = new Options(deref(self.thisptr).getOptions())
         retval = PyOptions()
         retval.thisptr = o
         return retval
 
     def setOptions(self, PyOptions options):
-        self.thisptr.setOptions(deref(options.thisptr))
+        deref(self.thisptr).setOptions(deref(options.thisptr))
 
 
 cdef class PyQProblem:
@@ -532,7 +609,7 @@ cdef class PyQProblem:
         # enable nWSR as return value in argument list
         if isinstance(nWSR, int):
             deprecation_warning_nWSR()
-            nWSR_tmp = np.array([nWSR], dtype=long)
+            nWSR_tmp = np.array([nWSR], dtype=int)
         else:
             nWSR_tmp = nWSR
 
@@ -583,7 +660,7 @@ cdef class PyQProblem:
         # enable nWSR as return value in argument list
         if isinstance(nWSR, int):
             deprecation_warning_nWSR()
-            nWSR_tmp = np.array([nWSR], dtype=long)
+            nWSR_tmp = np.array([nWSR], dtype=int)
         else:
             nWSR_tmp = nWSR
 
@@ -653,15 +730,15 @@ cdef class PySQProblem:
         # FIXME: add asserts
         cdef np.ndarray nWSR_tmp
         cdef np.ndarray cput_tmp
-        # nWSR_tmp = np.zeros(1, dtype=long)
+        # nWSR_tmp = np.zeros(1, dtype=int)
         # cput_tmp = np.zeros(1, dtype=float)
 
         # enable nWSR as return value in argument list
         if isinstance(nWSR, int):
             deprecation_warning_nWSR()
-            nWSR_tmp = np.array([nWSR], dtype=long)
+            nWSR_tmp = np.array([nWSR], dtype=int)
         else:
-            nWSR_tmp = np.asarray(nWSR, dtype=long)
+            nWSR_tmp = np.asarray(nWSR, dtype=int)
 
         if cputime > 1.e-16:
             # enable cputime as return value in argument list
@@ -713,7 +790,7 @@ cdef class PySQProblem:
         # enable nWSR as return value in argument list
         if isinstance(nWSR, int):
             deprecation_warning_nWSR()
-            nWSR_tmp = np.array([nWSR], dtype=long)
+            nWSR_tmp = np.array([nWSR], dtype=int)
         else:
             nWSR_tmp = nWSR
 
@@ -796,7 +873,7 @@ cdef class PySolutionAnalysis:
             np.ndarray[np.double_t, ndim=1] maxCmpl
         ):
         return self.thisptr.getKktViolation(
-                qp.thisptr,
+                qp.thisptr.get(),
                 <real_t*> maxStat.data[0],
                 <real_t*> maxFeas.data[0],
                 <real_t*> maxCmpl.data[0]
@@ -850,7 +927,7 @@ cdef class PySolutionAnalysis:
                               PyQProblemB qp,
                               np.ndarray[np.double_t, ndim=1] g_b_bA_VAR,
                               np.ndarray[np.double_t, ndim=1] Primal_Dual_VAR ):
-        return self.thisptr.getVarianceCovariance(qp.thisptr,
+        return self.thisptr.getVarianceCovariance(qp.thisptr.get(),
                                                   <real_t*> g_b_bA_VAR.data,
                                                   <real_t*> Primal_Dual_VAR.data)
 

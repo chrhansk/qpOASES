@@ -34,6 +34,7 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
     #      interface in all cases, i.e, either __USE_LONG_INTEGERS__ is defined
     #      or not.
     ctypedef long int_t
+    ctypedef long sparse_int_t
 
     cdef enum BooleanType:
 
@@ -246,6 +247,31 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
         RET_SIMPLE_STATUS_M2
         RET_SIMPLE_STATUS_M3
 
+    cdef cppclass Matrix:
+        pass
+
+    cdef cppclass SymmetricMatrix(Matrix):
+        sparse_int_t* createDiagInfo()
+
+    cdef cppclass DenseMatrix(Matrix):
+        DenseMatrix(int_t, int_t, int_t, real_t*)
+
+    cdef cppclass SymDenseMat(DenseMatrix, SymmetricMatrix):
+        SymDenseMat(int_t, int_t, int_t, real_t*)
+
+    cdef cppclass SparseMatrix(Matrix):
+        SparseMatrix(int_t,
+                     int_t,
+                     int_t*,
+                     int_t*,
+                     real_t*)
+
+    cdef cppclass SymSparseMat(SparseMatrix, SymmetricMatrix):
+        SymSparseMat(int_t,
+                     int_t,
+                     sparse_int_t*,
+                     sparse_int_t*,
+                     real_t*)
 
     cdef cppclass Options:
 
@@ -316,17 +342,25 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
 
         QProblemB(const QProblemB&)
 
-        returnValue init(real_t*,
+        returnValue init(SymmetricMatrix *,
                          real_t*,
                          real_t*,
                          real_t*,
                          int_t&)
 
-        returnValue init(real_t*,
+        returnValue init(SymmetricMatrix *,
                          real_t*,
                          real_t*,
                          real_t*,
                          int_t&,
+                         real_t*)
+
+        returnValue init(SymmetricMatrix *,
+                         real_t*,
+                         real_t*,
+                         real_t*,
+                         int_t&,
+                         real_t*,
                          real_t*)
 
         returnValue hotstart(real_t*,
@@ -354,6 +388,15 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
         QProblem(int_t, int_t, HessianType, BooleanType)
 
         QProblem(const QProblem&)
+
+        returnValue init(SymmetricMatrix *,
+                         const real_t* const,
+                         Matrix *,
+                         const real_t* const,
+                         const real_t* const,
+                         const real_t* const,
+                         const real_t* const,
+                         int_t&)
 
         returnValue init(real_t*,
                          real_t*,
