@@ -60,9 +60,17 @@ sparse_int_t_type = np.dtype('long')
 
 cdef str __version__ = "3.2.2"
 
-cdef class PyBooleanType:
-    FALSE = BT_FALSE
-    TRUE  = BT_TRUE
+
+cdef BooleanType bt_from_bool(bint value):
+    return BT_TRUE if value else BT_FALSE
+
+
+cdef bint bt_to_bool(BooleanType value):
+    if value == BT_TRUE:
+        return True
+    assert value == BT_FALSE
+    return False
+
 
 cdef class PyPrintLevel:
     DEBUG_ITER = PL_DEBUG_ITER
@@ -394,28 +402,28 @@ cdef class PyOptions:
         def __set__(self, printLevel): self.thisptr.printLevel = printLevel
 
     property enableRamping:
-        def __get__(self): return self.thisptr.enableRamping
-        def __set__(self, enableRamping): self.thisptr.enableRamping = enableRamping
+        def __get__(self): return bt_to_bool(self.thisptr.enableRamping)
+        def __set__(self, bint enableRamping): self.thisptr.enableRamping = bt_from_bool(enableRamping)
 
     property enableFarBounds:
-        def __get__(self): return self.thisptr.enableFarBounds
-        def __set__(self, enableFarBounds): self.thisptr.enableFarBounds = enableFarBounds
+        def __get__(self): return bt_to_bool(self.thisptr.enableFarBounds)
+        def __set__(self, bint enableFarBounds): self.thisptr.enableFarBounds = bt_from_bool(enableFarBounds)
 
     property enableFlippingBounds:
-        def __get__(self): return self.thisptr.enableFlippingBounds
-        def __set__(self, enableFlippingBounds): self.thisptr.enableFlippingBounds = enableFlippingBounds
+        def __get__(self): return bt_to_bool(self.thisptr.enableFlippingBounds)
+        def __set__(self, bint enableFlippingBounds): self.thisptr.enableFlippingBounds = bt_from_bool(enableFlippingBounds)
 
     property enableRegularisation:
-        def __get__(self): return self.thisptr.enableRegularisation
-        def __set__(self, enableRegularisation): self.thisptr.enableRegularisation = enableRegularisation
+        def __get__(self): return bt_to_bool(self.thisptr.enableRegularisation)
+        def __set__(self, bint enableRegularisation): self.thisptr.enableRegularisation = bt_from_bool(enableRegularisation)
 
     property enableFullLITests:
-        def __get__(self): return self.thisptr.enableFullLITests
-        def __set__(self, enableFullLITests): self.thisptr.enableFullLITests = enableFullLITests
+        def __get__(self): return bt_to_bool(self.thisptr.enableFullLITests)
+        def __set__(self, bint enableFullLITests): self.thisptr.enableFullLITests = bt_from_bool(enableFullLITests)
 
     property enableNZCTests:
-        def __get__(self): return self.thisptr.enableNZCTests
-        def __set__(self, enableNZCTests): self.thisptr.enableNZCTests = enableNZCTests
+        def __get__(self): return bt_to_bool(self.thisptr.enableNZCTests)
+        def __set__(self, bint enableNZCTests): self.thisptr.enableNZCTests = bt_from_bool(enableNZCTests)
 
     property enableDriftCorrection:
         def __get__(self): return self.thisptr.enableDriftCorrection
@@ -426,8 +434,8 @@ cdef class PyOptions:
         def __set__(self, enableCholeskyRefactorisation): self.thisptr.enableCholeskyRefactorisation = enableCholeskyRefactorisation
 
     property enableEqualities:
-        def __get__(self): return self.thisptr.enableEqualities
-        def __set__(self, enableEqualities): self.thisptr.enableEqualities = enableEqualities
+        def __get__(self): return bt_to_bool(self.thisptr.enableEqualities)
+        def __set__(self, bint enableEqualities): self.thisptr.enableEqualities = bt_from_bool(enableEqualities)
 
     property terminationTolerance:
         def __get__(self): return self.thisptr.terminationTolerance
@@ -635,7 +643,7 @@ cdef class PyQProblemB:
         return retval
 
     def setOptions(self, PyOptions options):
-        deref(self.thisptr).setOptions(deref(options.thisptr))
+        check_return_value(deref(self.thisptr).setOptions(deref(options.thisptr)))
 
 
 cdef class PyQProblem:
@@ -811,7 +819,7 @@ cdef class PySQProblem:
                 cput_tmp = cputime
             # print "cput_tmp: ", cput_tmp
 
-            return self.thisptr.init(
+            check_return_value(self.thisptr.init(
                         <real_t*> H.data,
                         <real_t*> g.data,
                         <real_t*> A.data,
@@ -820,10 +828,9 @@ cdef class PySQProblem:
                         <real_t*> lbA.data,
                         <real_t*> ubA.data,
                         <int_t&>  nWSR_tmp.data[0],
-                        <real_t*> &cput_tmp.data[0]
-                )
+                        <real_t*> &cput_tmp.data[0]))
 
-        return self.thisptr.init(
+        check_return_value(self.thisptr.init(
                     <real_t*> H.data,
                     <real_t*> g.data,
                     <real_t*> A.data,
@@ -831,8 +838,7 @@ cdef class PySQProblem:
                     <real_t*> ub.data,
                     <real_t*> lbA.data,
                     <real_t*> ubA.data,
-                    <int_t&>  nWSR_tmp.data[0],
-                )
+                    <int_t&>  nWSR_tmp.data[0]))
 
     cpdef hotstart(self,
              np.ndarray[np.double_t, ndim=2] H,
@@ -864,7 +870,7 @@ cdef class PySQProblem:
             else:
                 cput_tmp = cputime
 
-            return self.thisptr.hotstart(
+            check_return_value(self.thisptr.hotstart(
                     <real_t*> H.data,
                     <real_t*> g.data,
                     <real_t*> A.data,
@@ -873,10 +879,9 @@ cdef class PySQProblem:
                     <real_t*> lbA.data,
                     <real_t*> ubA.data,
                     <int_t&>  nWSR_tmp.data[0],
-                    <real_t*> &cput_tmp.data[0]
-            )
+                    <real_t*> &cput_tmp.data[0]))
 
-        return self.thisptr.hotstart(
+        check_return_value(self.thisptr.hotstart(
                     <real_t*> H.data,
                     <real_t*> g.data,
                     <real_t*> A.data,
@@ -884,8 +889,7 @@ cdef class PySQProblem:
                     <real_t*> ub.data,
                     <real_t*> lbA.data,
                     <real_t*> ubA.data,
-                    <int_t&>  nWSR_tmp.data[0],
-        )
+                    <int_t&>  nWSR_tmp.data[0]))
 
     cpdef getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
         return self.thisptr.getPrimalSolution(<real_t*> xOpt.data)
@@ -900,7 +904,7 @@ cdef class PySQProblem:
         return self.thisptr.printOptions()
 
     cpdef setOptions(self, PyOptions options):
-        self.thisptr.setOptions(deref(options.thisptr))
+        check_return_value(self.thisptr.setOptions(deref(options.thisptr)))
 
 
 cdef class PySolutionAnalysis:
@@ -974,37 +978,36 @@ cdef class PySolutionAnalysis:
                               np.ndarray[np.double_t, ndim=1] Primal_Dual_VAR ):
 
         if isinstance(qp, PyQProblemB):
-            return self._getVarianceCovariance_QProblemB(qp, g_b_bA_VAR, Primal_Dual_VAR)
+            check_return_value(self._getVarianceCovariance_QProblemB(qp, g_b_bA_VAR, Primal_Dual_VAR))
 
         elif isinstance(qp, PyQProblem):
-            return self._getVarianceCovariance_QProblem(qp, g_b_bA_VAR, Primal_Dual_VAR)
+            check_return_value(self._getVarianceCovariance_QProblem(qp, g_b_bA_VAR, Primal_Dual_VAR))
 
         elif isinstance(qp, PySQProblem):
-            return self._getVarianceCovariance_SQProblem(qp, g_b_bA_VAR, Primal_Dual_VAR)
-
+            check_return_value(self._getVarianceCovariance_SQProblem(qp, g_b_bA_VAR, Primal_Dual_VAR))
         else:
             raise ValueError('argument 1 must be QProblemB, QProblem or SQProblem')
 
-    cpdef _getVarianceCovariance_QProblemB(self,
-                              PyQProblemB qp,
-                              np.ndarray[np.double_t, ndim=1] g_b_bA_VAR,
-                              np.ndarray[np.double_t, ndim=1] Primal_Dual_VAR ):
+    cdef returnValue _getVarianceCovariance_QProblemB(self,
+                                                      PyQProblemB qp,
+                                                      np.ndarray[np.double_t, ndim=1] g_b_bA_VAR,
+                                                      np.ndarray[np.double_t, ndim=1] Primal_Dual_VAR ):
         return self.thisptr.getVarianceCovariance(qp.thisptr.get(),
                                                   <real_t*> g_b_bA_VAR.data,
                                                   <real_t*> Primal_Dual_VAR.data)
 
-    cpdef _getVarianceCovariance_QProblem(self,
-                              PyQProblem qp,
-                              np.ndarray[np.double_t, ndim=1] g_b_bA_VAR,
-                              np.ndarray[np.double_t, ndim=1] Primal_Dual_VAR ):
+    cdef returnValue _getVarianceCovariance_QProblem(self,
+                                                     PyQProblem qp,
+                                                     np.ndarray[np.double_t, ndim=1] g_b_bA_VAR,
+                                                     np.ndarray[np.double_t, ndim=1] Primal_Dual_VAR ):
         return self.thisptr.getVarianceCovariance(qp.thisptr.get(),
                                                   <real_t*> g_b_bA_VAR.data,
                                                   <real_t*> Primal_Dual_VAR.data)
 
-    cpdef _getVarianceCovariance_SQProblem(self,
-                              PySQProblem qp,
-                              np.ndarray[np.double_t, ndim=1] g_b_bA_VAR,
-                              np.ndarray[np.double_t, ndim=1] Primal_Dual_VAR ):
+    cdef returnValue _getVarianceCovariance_SQProblem(self,
+                                                      PySQProblem qp,
+                                                      np.ndarray[np.double_t, ndim=1] g_b_bA_VAR,
+                                                      np.ndarray[np.double_t, ndim=1] Primal_Dual_VAR ):
         return self.thisptr.getVarianceCovariance(qp.thisptr,
                                                   <real_t*> g_b_bA_VAR.data,
                                                   <real_t*> Primal_Dual_VAR.data)
