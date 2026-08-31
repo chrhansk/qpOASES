@@ -330,10 +330,29 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
 
     cdef cppclass Bounds:
         Bounds()
+        Bounds(int_t n)
+
+        returnValue init(int_t n)
+
+        returnValue setupBound(int_t number,
+                               SubjectToStatus status)
+
+        returnValue setupAllFree()
+        returnValue setupAllLower()
+        returnValue setupAllUpper()
 
 
     cdef cppclass Constraints:
         Constraints()
+        Constraints(int_t n)
+        returnValue init(int_t n)
+
+        returnValue setupConstraint(int_t number,
+                                    SubjectToStatus _status)
+
+        returnValue setupAllInactive()
+        returnValue setupAllLower()
+        returnValue setupAllUpper()
 
 
     cdef cppclass QProblemB:
@@ -346,33 +365,18 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
                          real_t*,
                          real_t*,
                          real_t*,
-                         int_t&)
-
-        returnValue init(SymmetricMatrix *,
-                         real_t*,
-                         real_t*,
-                         real_t*,
                          int_t&,
-                         real_t*)
-
-        returnValue init(SymmetricMatrix *,
-                         real_t*,
-                         real_t*,
-                         real_t*,
-                         int_t&,
-                         real_t*,
-                         real_t*)
-
-        returnValue hotstart(real_t*,
-                             real_t*,
-                             real_t*,
-                             int_t&)
+                         real_t* const,
+                         const real_t* const,
+                         const real_t* const,
+                         const Bounds* const)
 
         returnValue hotstart(real_t*,
                              real_t*,
                              real_t*,
                              int_t&,
-                             real_t*)
+                             real_t*,
+                             const Bounds* const)
 
 
         returnValue getPrimalSolution(real_t*)
@@ -396,24 +400,12 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
                          const real_t* const,
                          const real_t* const,
                          const real_t* const,
-                         int_t&)
-
-        returnValue init(SymmetricMatrix *,
-                         const real_t* const,
-                         Matrix *,
-                         const real_t* const,
-                         const real_t* const,
-                         const real_t* const,
-                         const real_t* const,
                          int_t&,
-                         real_t* const)
-
-        returnValue hotstart(real_t*,
-                             real_t*,
-                             real_t*,
-                             real_t*,
-                             real_t*,
-                             int_t&)
+                         real_t* const,
+                         const real_t* const xOpt,
+			 const real_t* const yOpt,
+			 const Bounds* const guessedBounds,
+			 const Constraints* const guessedConstraints)
 
         returnValue hotstart(real_t*,
                              real_t*,
@@ -421,7 +413,9 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
                              real_t*,
                              real_t*,
                              int_t&,
-                             real_t*)
+                             real_t*,
+                             const Bounds* const guessedBounds,
+			     const Constraints* const guessedConstraints)
 
         returnValue getPrimalSolution(real_t*)
         returnValue getDualSolution(real_t*)

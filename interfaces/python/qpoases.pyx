@@ -89,7 +89,7 @@ cpdef enum PyHessianType:
     INDEF              = HST_INDEF
     UNKNOWN            = HST_UNKNOWN
 
-cdef class PySubjectToStatus:
+cpdef enum PySubjectToStatus:
     LOWER              = ST_LOWER
     INACTIVE           = ST_INACTIVE
     UPPER              = ST_UPPER
@@ -526,6 +526,61 @@ cdef class PyOptions:
         def __set__(self, dropIneqConPriority): self.thisptr.dropIneqConPriority = dropIneqConPriority
 
 
+cdef class PyConstraints:
+    cdef unique_ptr[Constraints] thisptr
+
+    def __cinit__(self, n=None):
+        if n is not None:
+            self.thisptr = make_unique[Constraints](<int_t> n)
+        else:
+            self.thisptr = make_unique[Constraints]()
+
+
+    def init(self, n):
+        check_return_value(deref(self.thisptr).init(<int_t> n))
+
+    def setupConstraint(self,
+                   int_t number,
+                   PySubjectToStatus status):
+        check_return_value(deref(self.thisptr).setupConstraint(number, <SubjectToStatus> status))
+
+    def setupAllInactive(self):
+        check_return_value(deref(self.thisptr).setupAllInactive())
+
+    def setupAllLower(self):
+        check_return_value(deref(self.thisptr).setupAllLower())
+
+    def setupAllLower(self):
+        check_return_value(deref(self.thisptr).setupAllUpper())
+
+
+cdef class PyBounds:
+    cdef unique_ptr[Bounds] thisptr
+
+    def __cinit__(self, n=None):
+        if n is not None:
+            self.thisptr = make_unique[Bounds](<int_t> n)
+        else:
+            self.thisptr = make_unique[Bounds]()
+
+
+    def init(self, n):
+        check_return_value(deref(self.thisptr).init(<int_t> n))
+
+    def setupBound(self,
+                   int_t number,
+                   PySubjectToStatus status):
+        check_return_value(deref(self.thisptr).setupBound(number, <SubjectToStatus> status))
+
+    def setupAllFree(self):
+        check_return_value(deref(self.thisptr).setupAllFree())
+
+    def setupAllLower(self):
+        check_return_value(deref(self.thisptr).setupAllLower())
+
+    def setupAllLower(self):
+        check_return_value(deref(self.thisptr).setupAllUpper())
+
 
 cdef class PyQProblemB:
     cdef unique_ptr[QProblemB] thisptr      # hold a C++ instance which we're wrapping
@@ -544,11 +599,27 @@ cdef class PyQProblemB:
              np.ndarray[np.double_t, ndim=1] lb,
              np.ndarray[np.double_t, ndim=1] ub,
              nWSR,
-             cputime = 0.0
+             cputime = 0.0,
+             np.ndarray[np.double_t, ndim=1] x_opt=None,
+             np.ndarray[np.double_t, ndim=1] y_opt=None,
+             PyBounds guessed_bounds=None
         ):
         # FIXME: add asserts
         cdef np.ndarray nWSR_tmp
         cdef np.ndarray cput_tmp
+        cdef real_t* x_opt_view = NULL
+        cdef real_t* y_opt_view = NULL
+        cdef Bounds* guessed_bounds_view = NULL
+        cdef real_t* cput_view = NULL
+
+        if x_opt is not None:
+            x_opt_view = <real_t*> x_opt.data
+
+        if y_opt is not None:
+            y_opt_view = <real_t*> y_opt.data
+
+        if guessed_bounds is not None:
+            guessed_bounds.thisptr.get()
 
         # enable nWSR as return value in argument list
         if isinstance(nWSR, int):
@@ -568,32 +639,35 @@ cdef class PyQProblemB:
             else:
                 cput_tmp = cputime
 
-
-                check_return_value(deref(self.thisptr).init(
-                    self.Hptr.get(),
-                    <real_t*> g.data,
-                    <real_t*> lb.data,
-                    <real_t*> ub.data,
-                    <int_t&>  nWSR_tmp.data[0],
-                    <real_t*> &cput_tmp.data[0]))
+            cput_view = <real_t*> cput_tmp.data
 
         check_return_value(deref(self.thisptr).init(
-                    self.Hptr.get(),
-                    <real_t*> g.data,
-                    <real_t*> lb.data,
-                    <real_t*> ub.data,
-                    <int_t&> nWSR_tmp.data[0]))
+            self.Hptr.get(),
+            <real_t*> g.data,
+            <real_t*> lb.data,
+            <real_t*> ub.data,
+            <int_t&>  nWSR_tmp.data[0],
+            cput_view,
+            x_opt_view,
+            y_opt_view,
+            guessed_bounds_view))
 
     def hotstart(self,
              np.ndarray[np.double_t, ndim=1] g,
              np.ndarray[np.double_t, ndim=1] lb,
              np.ndarray[np.double_t, ndim=1] ub,
              nWSR,
-             cputime = 0.0
+             cputime=0.0,
+             PyBounds guessed_bounds=None
         ):
         # FIXME: add asserts
         cdef np.ndarray nWSR_tmp
         cdef np.ndarray cput_tmp
+        cdef Bounds* guessed_bounds_view = NULL
+        cdef real_t* cput_view = NULL
+
+        if guessed_bounds is not None:
+            guessed_bounds_view = guessed_bounds.thisptr.get()
 
         # enable nWSR as return value in argument list
         if isinstance(nWSR, int):
@@ -610,18 +684,15 @@ cdef class PyQProblemB:
             else:
                 cput_tmp = cputime#np.asarray(cputime, dtype=float)
 
-            check_return_value(deref(self.thisptr).hotstart(
-                    <real_t*> g.data,
-                    <real_t*> lb.data,
-                    <real_t*> ub.data,
-                    <int_t&>  nWSR_tmp.data[0],
-                    <real_t*> &cput_tmp.data[0]))
+            cput_view = <real_t*> &cput_tmp.data[0]
 
         check_return_value(deref(self.thisptr).hotstart(
-                    <real_t*> g.data,
-                    <real_t*> lb.data,
-                    <real_t*> ub.data,
-                    <int_t&>    nWSR_tmp.data[0]))
+                <real_t*> g.data,
+                <real_t*> lb.data,
+                <real_t*> ub.data,
+                <int_t&>  nWSR_tmp.data[0],
+                <real_t*> cput_view,
+                guessed_bounds_view))
 
     def getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
         return deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data)
@@ -668,11 +739,20 @@ cdef class PyQProblem:
              np.ndarray[np.double_t, ndim=1] lbA,
              np.ndarray[np.double_t, ndim=1] ubA,
              nWSR,
-             cputime=0.0):
+             cputime=0.0,
+             np.ndarray x_opt=None,
+             np.ndarray y_opt=None,
+             PyBounds guessed_bounds=None,
+             PyConstraints guessed_constraints=None):
 
         # FIXME: add asserts
         cdef np.ndarray nWSR_tmp
         cdef np.ndarray cput_tmp
+        cdef real_t* x_opt_view = NULL
+        cdef real_t* y_opt_view = NULL
+        cdef Bounds* guessed_bounds_view = NULL
+        cdef Constraints* guessed_constraints_view = NULL
+        cdef real_t* cput_view = NULL
 
         # enable nWSR as return value in argument list
         if isinstance(nWSR, int):
@@ -687,6 +767,18 @@ cdef class PyQProblem:
         self.Aobj = A
         self.Aptr = create_matrix(A)
 
+        if x_opt is not None:
+            x_opt_view = <real_t*> x_opt_view
+
+        if y_opt is not None:
+            y_opt_view = <real_t*> y_opt_view
+
+        if guessed_bounds is not None:
+            guessed_bounds_view = guessed_bounds.thisptr.get()
+
+        if guessed_constraints is not None:
+            guessed_constraints_view = guessed_constraints.thisptr.get()
+
         if cputime > 1.e-16:
             # enable cputime as return value in argument list
             if isinstance(cputime, float):
@@ -695,16 +787,7 @@ cdef class PyQProblem:
             else:
                 cput_tmp = cputime
 
-            check_return_value(deref(self.thisptr).init(
-                    self.Hptr.get(),
-                    <real_t*> g.data,
-                    self.Aptr.get(),
-                    <real_t*> lb.data,
-                    <real_t*> ub.data,
-                    <real_t*> lbA.data,
-                    <real_t*> ubA.data,
-                    <int_t&>  nWSR_tmp.data[0],
-                    <real_t*> &cput_tmp.data[0]))
+            cput_view = <real_t*> cput_tmp.data
 
         check_return_value(deref(self.thisptr).init(
                     self.Hptr.get(),
@@ -714,7 +797,12 @@ cdef class PyQProblem:
                     <real_t*> ub.data,
                     <real_t*> lbA.data,
                     <real_t*> ubA.data,
-                    <int_t&>  nWSR_tmp.data[0]))
+                    <int_t&>  nWSR_tmp.data[0],
+                    <real_t*> cput_view,
+                    x_opt_view,
+                    y_opt_view,
+                    guessed_bounds_view,
+                    guessed_constraints_view))
 
     cpdef hotstart(self,
              np.ndarray[np.double_t, ndim=1] g,
@@ -723,11 +811,23 @@ cdef class PyQProblem:
              np.ndarray[np.double_t, ndim=1] lbA,
              np.ndarray[np.double_t, ndim=1] ubA,
              nWSR,
-             cputime=0.0
+             cputime=0.0,
+             PyBounds guessed_bounds=None,
+             PyConstraints guessed_constraints=None
         ):
         # FIXME: add asserts
         cdef np.ndarray nWSR_tmp
         cdef np.ndarray cput_tmp
+
+        cdef Bounds* guessed_bounds_view = NULL
+        cdef Constraints* guessed_constraints_view = NULL
+        cdef real_t* cput_view = NULL
+
+        if guessed_bounds is not None:
+            guessed_bounds_view = guessed_bounds.thisptr.get()
+
+        if guessed_constraints is not None:
+            guessed_constraints_view = guessed_constraints.thisptr.get()
 
         # enable nWSR as return value in argument list
         if isinstance(nWSR, int):
@@ -744,14 +844,7 @@ cdef class PyQProblem:
             else:
                 cput_tmp = cputime
 
-            check_return_value(deref(self.thisptr).hotstart(
-                    <real_t*> g.data,
-                    <real_t*> lb.data,
-                    <real_t*> ub.data,
-                    <real_t*> lbA.data,
-                    <real_t*> ubA.data,
-                    <int_t&>  nWSR_tmp.data[0],
-                    <real_t*> &cput_tmp.data[0]))
+            cput_view = <real_t*> cput_tmp.data
 
         check_return_value(deref(self.thisptr).hotstart(
                     <real_t*> g.data,
@@ -759,7 +852,10 @@ cdef class PyQProblem:
                     <real_t*> ub.data,
                     <real_t*> lbA.data,
                     <real_t*> ubA.data,
-                    <int_t&>  nWSR_tmp.data[0]))
+                    <int_t&>  nWSR_tmp.data[0],
+                    <real_t*> &cput_tmp.data[0],
+                    guessed_bounds_view,
+                    guessed_constraints_view))
 
     cpdef getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
         check_return_value(deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data))
