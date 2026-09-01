@@ -590,6 +590,12 @@ cdef class PyBounds:
     def print(self):
         check_return_value(deref(self.thisptr).print())
 
+    def moveFixedToFree(self, int_t number):
+        check_return_value(deref(self.thisptr).moveFixedToFree(number))
+
+    def moveFreeToFixed(self, int_t number, PySubjectToStatus status):
+        check_return_value(deref(self.thisptr).moveFreeToFixed(number,
+                                                               <SubjectToStatus> status))
 
 cdef class PyQProblemB:
     cdef unique_ptr[QProblemB] thisptr      # hold a C++ instance which we're wrapping

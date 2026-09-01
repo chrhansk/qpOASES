@@ -341,6 +341,11 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
         returnValue setupAllLower()
         returnValue setupAllUpper()
 
+        returnValue moveFixedToFree(int_t number)
+
+        returnValue moveFreeToFixed(int_t number,
+                                    SubjectToStatus _status)
+
         returnValue print()
 
 
