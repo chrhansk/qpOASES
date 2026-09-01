@@ -592,8 +592,58 @@ cdef class PyConstraints:
     def print(self):
         check_return_value(deref(self.thisptr).print())
 
-    def print(self):
-        check_return_value(deref(self.thisptr).print())
+    def getActive(self):
+        cdef PyIndexlist activeList = PyIndexlist()
+        activeList.thisptr = deref(self.thisptr).getActive()
+        activeList.parent = self
+        return activeList
+
+    def getInactive(self):
+        cdef PyIndexlist inactiveList = PyIndexlist()
+        inactiveList.thisptr = deref(self.thisptr).getInactive()
+        inactiveList.parent = self
+        return inactiveList
+
+
+cdef class PyIndexlist:
+    cdef Indexlist* thisptr
+    cdef object parent
+
+    def __cinit__(self):
+        self.thisptr = NULL
+
+    # returnValue init(int_t n)
+    # returnValuegetNumberArray( int_t** const numberarray) const
+    # returnValuegetISortArray(  int_t** const iSortArray) const
+
+    def getIndex(self, int_t number):
+        return self.thisptr.getIndex(number)
+
+    def getNumber(self, int_t index):
+        return self.thisptr.getNumber(index)
+
+    @property
+    def length(self):
+        return self.this.ptr.getLength()
+
+    @property
+    def lastNumber(self):
+        return self.thisptr.getLastNumber()
+
+    def addNumber(self, int_t number):
+        check_return_value(self.thisptr.addNumber(number))
+
+    def removeNumber(self, int_t number):
+        check_return_value(self.thisptr.removeNumber(number))
+
+    def swapNumbers(self, int_t first, int_t second):
+        check_return_value(self.thisptr.swapNumbers(first, second))
+
+    def isMember(self, int_t number):
+        return self.thisptr.isMember(number)
+
+    def __contains__(self, number):
+        return self.isMember(number)
 
 
 cdef class PyBounds:
@@ -632,6 +682,18 @@ cdef class PyBounds:
     def moveFreeToFixed(self, int_t number, PySubjectToStatus status):
         check_return_value(deref(self.thisptr).moveFreeToFixed(number,
                                                                <SubjectToStatus> status))
+
+    def getFree(self):
+        cdef PyIndexlist freeList = PyIndexlist()
+        freeList.thisptr = deref(self.thisptr).getFree()
+        freeList.parent = self
+        return freeList
+
+    def getFixed(self):
+        cdef PyIndexlist fixedList = PyIndexlist()
+        fixedList.thisptr = deref(self.thisptr).getFixed()
+        fixedList.parent = self
+        return fixedList
 
 cdef class PyQProblemB:
     cdef unique_ptr[QProblemB] thisptr      # hold a C++ instance which we're wrapping

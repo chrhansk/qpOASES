@@ -328,6 +328,20 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
         int_t dropIneqConPriority
 
 
+    cdef cppclass Indexlist:
+        returnValue init(int_t n)
+        returnValuegetNumberArray( int_t** const numberarray) const
+        returnValuegetISortArray(  int_t** const iSortArray) const
+        int_t getIndex(int_t givennumber) const
+        int_t getNumber(int_t physicalindex) const
+        int_t getLength() const
+        int_t getLastNumber() const
+        returnValue addNumber(int_t addnumber)
+        returnValue removeNumber(int_t removenumber)
+        returnValue swapNumbers(int_t number1, int_t number2)
+        BooleanType isMember(int_t _number) const
+
+
     cdef cppclass Bounds:
         Bounds()
         Bounds(int_t n)
@@ -348,6 +362,9 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
 
         returnValue print()
 
+        Indexlist* getFree()
+        Indexlist* getFixed()
+
 
     cdef cppclass Constraints:
         Constraints()
@@ -362,6 +379,9 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
         returnValue setupAllUpper()
 
         returnValue print()
+
+        Indexlist* getActive()
+        Indexlist* getInactive()
 
 
     cdef cppclass QProblemB:
