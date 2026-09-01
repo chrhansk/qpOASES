@@ -553,6 +553,12 @@ cdef class PyConstraints:
     def setupAllLower(self):
         check_return_value(deref(self.thisptr).setupAllUpper())
 
+    def print(self):
+        check_return_value(deref(self.thisptr).print())
+
+    def print(self):
+        check_return_value(deref(self.thisptr).print())
+
 
 cdef class PyBounds:
     cdef unique_ptr[Bounds] thisptr
@@ -580,6 +586,9 @@ cdef class PyBounds:
 
     def setupAllLower(self):
         check_return_value(deref(self.thisptr).setupAllUpper())
+
+    def print(self):
+        check_return_value(deref(self.thisptr).print())
 
 
 cdef class PyQProblemB:

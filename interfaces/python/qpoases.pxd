@@ -341,6 +341,8 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
         returnValue setupAllLower()
         returnValue setupAllUpper()
 
+        returnValue print()
+
 
     cdef cppclass Constraints:
         Constraints()
@@ -353,6 +355,8 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
         returnValue setupAllInactive()
         returnValue setupAllLower()
         returnValue setupAllUpper()
+
+        returnValue print()
 
 
     cdef cppclass QProblemB:
