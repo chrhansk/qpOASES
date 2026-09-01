@@ -716,6 +716,18 @@ cdef class PyQProblemB:
     def setOptions(self, PyOptions options):
         check_return_value(deref(self.thisptr).setOptions(deref(options.thisptr)))
 
+    @property
+    def NV(self) -> int:
+        return deref(self.thisptr).getNV()
+
+    def getBounds(self) -> PyBounds:
+        cdef PyBounds bounds = PyBounds()
+        cdef Bounds* bounds_view = bounds.thisptr.get()
+
+        check_return_value(deref(self.thisptr).getBounds(deref(bounds_view)))
+
+        return bounds
+
 
 cdef class PyQProblem:
     cdef unique_ptr[QProblem] thisptr      # hold a C++ instance which we're wrapping
@@ -871,6 +883,30 @@ cdef class PyQProblem:
 
     cpdef setOptions(self, PyOptions options):
         check_return_value(deref(self.thisptr).setOptions(deref(options.thisptr)))
+
+    @property
+    def NV(self):
+        return deref(self.thisptr).getNV()
+
+    @property
+    def NC(self):
+        return deref(self.thisptr).getNC()
+
+    def getBounds(self) -> PyBounds:
+        cdef PyBounds bounds = PyBounds()
+        cdef Bounds* bounds_view = bounds.thisptr.get()
+
+        check_return_value(deref(self.thisptr).getBounds(deref(bounds_view)))
+
+        return bounds
+
+    def getConstraints(self) -> PyConstraints:
+        cdef PyConstraints constraints = PyConstraints()
+        cdef Constraints* constraints_view = constraints.thisptr.get()
+
+        check_return_value(deref(self.thisptr).getConstraints(deref(constraints_view)))
+
+        return constraints
 
 
 cdef class PySQProblem:

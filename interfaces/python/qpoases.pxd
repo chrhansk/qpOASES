@@ -383,6 +383,9 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
         returnValue getDualSolution(real_t*)
         returnValue printOptions()
         real_t getObjVal()
+        int_t getNV( ) const
+
+        returnValue getBounds(Bounds& bounds) const
 
         Options getOptions()
         returnValue setOptions(Options&)
@@ -421,6 +424,11 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
         returnValue getDualSolution(real_t*)
         returnValue printOptions()
         real_t getObjVal()
+        int_t getNC( ) const
+        int_t getNV( ) const
+
+        returnValue getBounds(Bounds& bounds) const
+        returnValue getConstraints(Constraints& constraints) const
 
         Options getOptions()
         returnValue setOptions(Options&)
