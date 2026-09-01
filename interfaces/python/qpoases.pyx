@@ -374,6 +374,41 @@ cdef unique_ptr[Matrix] create_matrix(A: np.ndarray | sp.sparse.spmatrix):
                                                          <real_t*> & A_data[0]))
 
 
+cdef get_working_set_bounds(QProblemB* problem):
+    cdef np.ndarray working_set_bounds = np.empty((problem.getNV(),),
+                                                  dtype=real_t_type)
+
+    check_return_value(problem.getWorkingSetBounds(<real_t*> working_set_bounds.data))
+
+    return working_set_bounds
+
+
+cdef get_working_set_constraints(QProblem* problem):
+    cdef np.ndarray working_set_bounds = np.empty((problem.getNC(),),
+                                                  dtype=real_t_type)
+
+    check_return_value(problem.getWorkingSetConstraints(<real_t*> working_set_bounds.data))
+
+    return working_set_bounds
+
+
+cdef get_bounds(QProblemB* problem):
+        cdef PyBounds bounds = PyBounds()
+        cdef Bounds* bounds_view = bounds.thisptr.get()
+
+        check_return_value(problem.getBounds(deref(bounds_view)))
+
+        return bounds
+
+cdef get_constraints(QProblem* problem):
+        cdef PyConstraints constraints = PyConstraints()
+        cdef Constraints* constraints_view = constraints.thisptr.get()
+
+        check_return_value(problem.getConstraints(deref(constraints_view)))
+
+        return constraints
+
+
 cdef class PyOptions:
     cdef Options *thisptr      # hold a C++ instance which we're wrapping
     def __cinit__(self):
@@ -737,12 +772,10 @@ cdef class PyQProblemB:
         return deref(self.thisptr).getNV()
 
     def getBounds(self) -> PyBounds:
-        cdef PyBounds bounds = PyBounds()
-        cdef Bounds* bounds_view = bounds.thisptr.get()
+        return get_bounds(self.thisptr.get())
 
-        check_return_value(deref(self.thisptr).getBounds(deref(bounds_view)))
-
-        return bounds
+    def getWorkingSetBounds(self):
+        return get_working_set_bounds(self.thisptr.get())
 
 
 cdef class PyQProblem:
@@ -905,28 +938,56 @@ cdef class PyQProblem:
         return deref(self.thisptr).getNV()
 
     @property
+    def NFR(self):
+        return deref(self.thisptr).getNFR()
+
+    @property
+    def NFX(self):
+        return deref(self.thisptr).getNFX()
+
+    @property
+    def NFV(self):
+        return deref(self.thisptr).getNFV()
+
+    @property
+    def NZ(self):
+        return deref(self.thisptr).getNZ()
+
+    @property
     def NC(self):
         return deref(self.thisptr).getNC()
 
+    @property
+    def NEC(self):
+        return deref(self.thisptr).getNEC()
+
+    @property
+    def NAC(self):
+        return deref(self.thisptr).getNAC()
+
+    @property
+    def NIAC(self):
+        return deref(self.thisptr).getNIAC()
+
     def getBounds(self) -> PyBounds:
-        cdef PyBounds bounds = PyBounds()
-        cdef Bounds* bounds_view = bounds.thisptr.get()
-
-        check_return_value(deref(self.thisptr).getBounds(deref(bounds_view)))
-
-        return bounds
+        return get_bounds(self.thisptr.get())
 
     def getConstraints(self) -> PyConstraints:
-        cdef PyConstraints constraints = PyConstraints()
-        cdef Constraints* constraints_view = constraints.thisptr.get()
+        return get_constraints(self.thisptr.get())
 
-        check_return_value(deref(self.thisptr).getConstraints(deref(constraints_view)))
+    def getWorkingSetBounds(self):
+        return get_working_set_bounds(self.thisptr.get())
 
-        return constraints
+    def getWorkingSetConstraints(self):
+        return get_working_set_constraints(self.thisptr.get())
 
 
 cdef class PySQProblem:
     cdef unique_ptr[SQProblem] thisptr      # hold a C++ instance which we're wrapping
+    cdef unique_ptr[SymmetricMatrix] Hptr
+    cdef object Hobj
+    cdef unique_ptr[Matrix] Aptr
+    cdef object Aobj
 
     def __cinit__(self,
                   int_t nV,
@@ -935,21 +996,47 @@ cdef class PySQProblem:
         self.thisptr = make_unique[SQProblem](nV, nC, <HessianType> hessian_type, BT_TRUE)
 
     cpdef init(self,
-             np.ndarray[np.double_t, ndim=2] H,
+             H: np.ndarray | sp.sparse.spmatrix,
              np.ndarray[np.double_t, ndim=1] g,
-             np.ndarray[np.double_t, ndim=2] A,
+             A: np.ndarray | sp.sparse.spmatrix,
              np.ndarray[np.double_t, ndim=1] lb,
              np.ndarray[np.double_t, ndim=1] ub,
              np.ndarray[np.double_t, ndim=1] lbA,
              np.ndarray[np.double_t, ndim=1] ubA,
              nWSR,
-             cputime=0.0
+             cputime=0.0,
+             np.ndarray x_opt=None,
+             np.ndarray y_opt=None,
+             PyBounds guessed_bounds=None,
+             PyConstraints guessed_constraints=None
+    ):
+        self._maybe_init(H, g, A, lb, ub, lbA, ubA, nWSR, cputime, x_opt, y_opt,
+                         guessed_bounds, guessed_constraints, hotstart=False)
+
+    cpdef _maybe_init(self,
+             H: np.ndarray | sp.sparse.spmatrix,
+             np.ndarray[np.double_t, ndim=1] g,
+             A: np.ndarray | sp.sparse.spmatrix,
+             np.ndarray[np.double_t, ndim=1] lb,
+             np.ndarray[np.double_t, ndim=1] ub,
+             np.ndarray[np.double_t, ndim=1] lbA,
+             np.ndarray[np.double_t, ndim=1] ubA,
+             nWSR,
+             cputime,
+             np.ndarray x_opt,
+             np.ndarray y_opt,
+             PyBounds guessed_bounds,
+             PyConstraints guessed_constraints,
+             hotstart
     ):
         # FIXME: add asserts
         cdef np.ndarray nWSR_tmp
         cdef np.ndarray cput_tmp
-        # nWSR_tmp = np.zeros(1, dtype=int)
-        # cput_tmp = np.zeros(1, dtype=float)
+        cdef real_t* x_opt_view = NULL
+        cdef real_t* y_opt_view = NULL
+        cdef Bounds* guessed_bounds_view = NULL
+        cdef Constraints* guessed_constraints_view = NULL
+        cdef real_t* cput_view = NULL
 
         # enable nWSR as return value in argument list
         if isinstance(nWSR, int):
@@ -958,6 +1045,24 @@ cdef class PySQProblem:
         else:
             nWSR_tmp = np.asarray(nWSR, dtype=int)
 
+        self.Hobj = H
+        self.Hptr = create_symm_matrix(H)
+
+        self.Aobj = A
+        self.Aptr = create_matrix(A)
+
+        if x_opt is not None:
+            x_opt_view = <real_t*> x_opt_view
+
+        if y_opt is not None:
+            y_opt_view = <real_t*> y_opt_view
+
+        if guessed_bounds is not None:
+            guessed_bounds_view = guessed_bounds.thisptr.get()
+
+        if guessed_constraints is not None:
+            guessed_constraints_view = guessed_constraints.thisptr.get()
+
         if cputime > 1.e-16:
             # enable cputime as return value in argument list
             if isinstance(cputime, float):
@@ -965,79 +1070,53 @@ cdef class PySQProblem:
                 cput_tmp = np.array([cputime], dtype=float)
             else:
                 cput_tmp = cputime
-            # print "cput_tmp: ", cput_tmp
 
-            check_return_value(deref(self.thisptr).init(
-                        <real_t*> H.data,
+            cput_view = <real_t*> cput_tmp.data
+
+        if hotstart:
+            check_return_value(deref(self.thisptr).hotstart(
+                        self.Hptr.get(),
                         <real_t*> g.data,
-                        <real_t*> A.data,
+                        self.Aptr.get(),
                         <real_t*> lb.data,
                         <real_t*> ub.data,
                         <real_t*> lbA.data,
                         <real_t*> ubA.data,
                         <int_t&>  nWSR_tmp.data[0],
-                        <real_t*> &cput_tmp.data[0]))
-
-        check_return_value(deref(self.thisptr).init(
-                    <real_t*> H.data,
-                    <real_t*> g.data,
-                    <real_t*> A.data,
-                    <real_t*> lb.data,
-                    <real_t*> ub.data,
-                    <real_t*> lbA.data,
-                    <real_t*> ubA.data,
-                    <int_t&>  nWSR_tmp.data[0]))
+                        <real_t*> cput_view,
+                        guessed_bounds_view,
+                        guessed_constraints_view))
+        else:
+            check_return_value(deref(self.thisptr).init(
+                        self.Hptr.get(),
+                        <real_t*> g.data,
+                        self.Aptr.get(),
+                        <real_t*> lb.data,
+                        <real_t*> ub.data,
+                        <real_t*> lbA.data,
+                        <real_t*> ubA.data,
+                        <int_t&>  nWSR_tmp.data[0],
+                        <real_t*> cput_view,
+                        x_opt_view,
+                        y_opt_view,
+                        guessed_bounds_view,
+                        guessed_constraints_view))
 
     cpdef hotstart(self,
-             np.ndarray[np.double_t, ndim=2] H,
+             H: np.ndarray | sp.sparse.spmatrix,
              np.ndarray[np.double_t, ndim=1] g,
-             np.ndarray[np.double_t, ndim=2] A,
+             A: np.ndarray | sp.sparse.spmatrix,
              np.ndarray[np.double_t, ndim=1] lb,
              np.ndarray[np.double_t, ndim=1] ub,
              np.ndarray[np.double_t, ndim=1] lbA,
              np.ndarray[np.double_t, ndim=1] ubA,
              nWSR,
-             cputime=0.0):
-
-        # FIXME: add asserts
-        cdef np.ndarray nWSR_tmp
-        cdef np.ndarray cput_tmp
-
-        # enable nWSR as return value in argument list
-        if isinstance(nWSR, int):
-            deprecation_warning_nWSR()
-            nWSR_tmp = np.array([nWSR], dtype=int)
-        else:
-            nWSR_tmp = nWSR
-
-        if cputime > 1.e-16:
-            # enable cputime as return value in argument list
-            if isinstance(cputime, float):
-                deprecation_warning_cputime()
-                cput_tmp = np.array([cputime], dtype=float)
-            else:
-                cput_tmp = cputime
-
-            check_return_value(deref(self.thisptr).hotstart(
-                    <real_t*> H.data,
-                    <real_t*> g.data,
-                    <real_t*> A.data,
-                    <real_t*> lb.data,
-                    <real_t*> ub.data,
-                    <real_t*> lbA.data,
-                    <real_t*> ubA.data,
-                    <int_t&>  nWSR_tmp.data[0],
-                    <real_t*> &cput_tmp.data[0]))
-
-        check_return_value(deref(self.thisptr).hotstart(
-                    <real_t*> H.data,
-                    <real_t*> g.data,
-                    <real_t*> A.data,
-                    <real_t*> lb.data,
-                    <real_t*> ub.data,
-                    <real_t*> lbA.data,
-                    <real_t*> ubA.data,
-                    <int_t&>  nWSR_tmp.data[0]))
+             cputime=0.0,
+             PyBounds guessed_bounds=None,
+             PyConstraints guessed_constraints=None
+    ):
+        self._maybe_init(H, g, A, lb, ub, lbA, ubA, nWSR, cputime, None, None,
+                         guessed_bounds, guessed_constraints, hotstart=True)
 
     cpdef getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
         return deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data)
@@ -1053,6 +1132,42 @@ cdef class PySQProblem:
 
     cpdef setOptions(self, PyOptions options):
         check_return_value(deref(self.thisptr).setOptions(deref(options.thisptr)))
+
+    @property
+    def NV(self):
+        return deref(self.thisptr).getNV()
+
+    @property
+    def NFR(self):
+        return deref(self.thisptr).getNFR()
+
+    @property
+    def NFX(self):
+        return deref(self.thisptr).getNFX()
+
+    @property
+    def NFV(self):
+        return deref(self.thisptr).getNFV()
+
+    @property
+    def NZ(self):
+        return deref(self.thisptr).getNZ()
+
+    @property
+    def NC(self):
+        return deref(self.thisptr).getNC()
+
+    def getBounds(self) -> PyBounds:
+        return get_bounds(self.thisptr.get())
+
+    def getConstraints(self) -> PyConstraints:
+        return get_constraints(self.thisptr.get())
+
+    def getWorkingSetBounds(self):
+        return get_working_set_bounds(self.thisptr.get())
+
+    def getWorkingSetConstraints(self):
+        return get_working_set_constraints(self.thisptr.get())
 
 
 cdef class PySolutionAnalysis:
