@@ -46,6 +46,7 @@ from libcpp.memory cimport unique_ptr, make_unique
 
 cimport qpoases
 
+
 def deprecation_warning_nWSR():
     warnings.warn("\nInteger nWSR will be deprecated in qpOASES 4.0.\nUse nWSR = numpy.array([10]) as input to qp.init() and qp.hotstart()", DeprecationWarning, stacklevel=2)
 
@@ -925,13 +926,13 @@ cdef class PyQProblem:
 
 
 cdef class PySQProblem:
-    cdef SQProblem *thisptr      # hold a C++ instance which we're wrapping
+    cdef unique_ptr[SQProblem] thisptr      # hold a C++ instance which we're wrapping
 
-    def __cinit__(self, long nV, long nC, PyHessianType hessian_type=PyHessianType.UNKNOWN):
-        self.thisptr = new SQProblem(nV, nC, <HessianType> hessian_type, BT_TRUE)
-
-    def __dealloc__(self):
-        del self.thisptr
+    def __cinit__(self,
+                  int_t nV,
+                  int_t nC,
+                  PyHessianType hessian_type=PyHessianType.UNKNOWN):
+        self.thisptr = make_unique[SQProblem](nV, nC, <HessianType> hessian_type, BT_TRUE)
 
     cpdef init(self,
              np.ndarray[np.double_t, ndim=2] H,
@@ -966,7 +967,7 @@ cdef class PySQProblem:
                 cput_tmp = cputime
             # print "cput_tmp: ", cput_tmp
 
-            check_return_value(self.thisptr.init(
+            check_return_value(deref(self.thisptr).init(
                         <real_t*> H.data,
                         <real_t*> g.data,
                         <real_t*> A.data,
@@ -977,7 +978,7 @@ cdef class PySQProblem:
                         <int_t&>  nWSR_tmp.data[0],
                         <real_t*> &cput_tmp.data[0]))
 
-        check_return_value(self.thisptr.init(
+        check_return_value(deref(self.thisptr).init(
                     <real_t*> H.data,
                     <real_t*> g.data,
                     <real_t*> A.data,
@@ -1017,7 +1018,7 @@ cdef class PySQProblem:
             else:
                 cput_tmp = cputime
 
-            check_return_value(self.thisptr.hotstart(
+            check_return_value(deref(self.thisptr).hotstart(
                     <real_t*> H.data,
                     <real_t*> g.data,
                     <real_t*> A.data,
@@ -1028,7 +1029,7 @@ cdef class PySQProblem:
                     <int_t&>  nWSR_tmp.data[0],
                     <real_t*> &cput_tmp.data[0]))
 
-        check_return_value(self.thisptr.hotstart(
+        check_return_value(deref(self.thisptr).hotstart(
                     <real_t*> H.data,
                     <real_t*> g.data,
                     <real_t*> A.data,
@@ -1039,19 +1040,19 @@ cdef class PySQProblem:
                     <int_t&>  nWSR_tmp.data[0]))
 
     cpdef getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
-        return self.thisptr.getPrimalSolution(<real_t*> xOpt.data)
+        return deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data)
 
     cpdef getDualSolution(self, np.ndarray[np.double_t, ndim=1] yOpt):
-        return self.thisptr.getDualSolution(<real_t*> yOpt.data)
+        return deref(self.thisptr).getDualSolution(<real_t*> yOpt.data)
 
     cpdef getObjVal(self):
-        return self.thisptr.getObjVal()
+        return deref(self.thisptr).getObjVal()
 
     cpdef printOptions(self):
-        return self.thisptr.printOptions()
+        return deref(self.thisptr).printOptions()
 
     cpdef setOptions(self, PyOptions options):
-        check_return_value(self.thisptr.setOptions(deref(options.thisptr)))
+        check_return_value(deref(self.thisptr).setOptions(deref(options.thisptr)))
 
 
 cdef class PySolutionAnalysis:
@@ -1113,7 +1114,7 @@ cdef class PySolutionAnalysis:
             np.ndarray[np.double_t, ndim=1] maxCmpl
         ):
         return self.thisptr.getKktViolation(
-                qp.thisptr,
+                qp.thisptr.get(),
                 <real_t*> maxStat.data[0],
                 <real_t*> maxFeas.data[0],
                 <real_t*> maxCmpl.data[0]
@@ -1155,7 +1156,7 @@ cdef class PySolutionAnalysis:
                                                       PySQProblem qp,
                                                       np.ndarray[np.double_t, ndim=1] g_b_bA_VAR,
                                                       np.ndarray[np.double_t, ndim=1] Primal_Dual_VAR ):
-        return self.thisptr.getVarianceCovariance(qp.thisptr,
+        return self.thisptr.getVarianceCovariance(qp.thisptr.get(),
                                                   <real_t*> g_b_bA_VAR.data,
                                                   <real_t*> Primal_Dual_VAR.data)
 
