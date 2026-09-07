@@ -610,6 +610,21 @@ cdef class PyConstraints:
         inactiveList.parent = self
         return inactiveList
 
+    def getStatus(self, int_t i):
+        return deref(self.thisptr).getStatus(i)
+
+    def setStatus(self, int_t i, SubjectToStatus value):
+        return deref(self.thisptr).setStatus(i, value)
+
+    def copy(self):
+        cdef PyConstraints copied = PyConstraints()
+        copied.thisptr = make_unique[Constraints](deref(self.thisptr.get()))
+        return copied
+
+    def __copy__(self):
+        return self.copy()
+
+
 
 cdef class PyIndexlist:
     cdef Indexlist* thisptr
@@ -700,6 +715,20 @@ cdef class PyBounds:
         fixedList.thisptr = deref(self.thisptr).getFixed()
         fixedList.parent = self
         return fixedList
+
+    def getStatus(self, int_t i):
+        return deref(self.thisptr).getStatus(i)
+
+    def setStatus(self, int_t i, SubjectToStatus value):
+        return deref(self.thisptr).setStatus(i, value)
+
+    def copy(self):
+        cdef PyBounds copied = PyBounds()
+        copied.thisptr = make_unique[Bounds](deref(self.thisptr.get()))
+        return copied
+
+    def __copy__(self):
+        return self.copy()
 
 cdef class PyQProblemB:
     cdef unique_ptr[QProblemB] thisptr      # hold a C++ instance which we're wrapping

@@ -345,6 +345,7 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
     cdef cppclass Bounds:
         Bounds()
         Bounds(int_t n)
+        Bounds(const Bounds& other)
 
         returnValue init(int_t n)
 
@@ -374,6 +375,7 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
     cdef cppclass Constraints:
         Constraints()
         Constraints(int_t n)
+        Consstraints(const Constraints& other)
         returnValue init(int_t n)
 
         returnValue setupConstraint(int_t number,
