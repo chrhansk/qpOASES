@@ -365,6 +365,11 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
         Indexlist* getFree()
         Indexlist* getFixed()
 
+        SubjectToStatus getStatus(int_t i)
+        returnValue     setStatus(int_t i, SubjectToStatus value)
+
+        int_t getNV()
+
 
     cdef cppclass Constraints:
         Constraints()
@@ -378,10 +383,20 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
         returnValue setupAllLower()
         returnValue setupAllUpper()
 
+        returnValue moveActiveToInactive(int_t number)
+
+        returnValue moveInactiveToActive(int_t number,
+                                    SubjectToStatus _status)
+
         returnValue print()
 
         Indexlist* getActive()
         Indexlist* getInactive()
+
+        SubjectToStatus getStatus(int_t i)
+        returnValue     setStatus(int_t i, SubjectToStatus value)
+
+        int_t getNC()
 
 
     cdef cppclass QProblemB:

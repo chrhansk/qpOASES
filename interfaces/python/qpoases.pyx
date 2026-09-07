@@ -571,7 +571,6 @@ cdef class PyConstraints:
         else:
             self.thisptr = make_unique[Constraints]()
 
-
     def init(self, n):
         check_return_value(deref(self.thisptr).init(<int_t> n))
 
@@ -586,8 +585,15 @@ cdef class PyConstraints:
     def setupAllLower(self):
         check_return_value(deref(self.thisptr).setupAllLower())
 
-    def setupAllLower(self):
+    def setupAllUpper(self):
         check_return_value(deref(self.thisptr).setupAllUpper())
+
+    def moveActiveToInactive(self, int_t number):
+        check_return_value(deref(self.thisptr).moveActiveToInactive(number))
+
+    def moveInactiveToActive(self, int_t number, PySubjectToStatus status):
+        check_return_value(deref(self.thisptr).moveInactiveToActive(number,
+                                                                    <SubjectToStatus> status))
 
     def print(self):
         check_return_value(deref(self.thisptr).print())
@@ -832,6 +838,22 @@ cdef class PyQProblemB:
     @property
     def NV(self) -> int:
         return deref(self.thisptr).getNV()
+
+    @property
+    def NFR(self) -> int:
+        return deref(self.thisptr).getNFR()
+
+    @property
+    def NFX(self) -> int:
+        return deref(self.thisptr).getNFX()
+
+    @property
+    def NFV(self) -> int:
+        return deref(self.thisptr).getNFV()
+
+    @property
+    def NZ(self) -> int:
+        return deref(self.thisptr).getNZ()
 
     def getBounds(self) -> PyBounds:
         return get_bounds(self.thisptr.get())
@@ -1219,6 +1241,18 @@ cdef class PySQProblem:
     def NC(self):
         return deref(self.thisptr).getNC()
 
+    @property
+    def NEC(self):
+        return deref(self.thisptr).getNEC()
+
+    @property
+    def NAC(self):
+        return deref(self.thisptr).getNAC()
+
+    @property
+    def NIAC(self):
+        return deref(self.thisptr).getNIAC()
+
     def getBounds(self) -> PyBounds:
         return get_bounds(self.thisptr.get())
 
@@ -1387,4 +1421,3 @@ def py_getKktViolation(long nV,                             # Number of variable
                     )
     return stat, feas, cmpl
 """
-
