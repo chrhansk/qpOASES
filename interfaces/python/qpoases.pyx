@@ -676,7 +676,7 @@ cdef class PyBounds:
     def setupAllLower(self):
         check_return_value(deref(self.thisptr).setupAllLower())
 
-    def setupAllLower(self):
+    def setupAllUpper(self):
         check_return_value(deref(self.thisptr).setupAllUpper())
 
     def print(self):
