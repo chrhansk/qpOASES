@@ -73,6 +73,44 @@ cdef bint bt_to_bool(BooleanType value):
     return False
 
 
+cdef np.ndarray get_cputime(cputime):
+    cdef np.ndarray cputime_arr = None
+
+    if isinstance(cputime, float) and cputime != 0:
+        deprecation_warning_cputime()
+
+    cputime_arr = np.atleast_1d(cputime).astype(real_t_type)
+
+    if cputime_arr.ndim != 1 or \
+       cputime_arr.size != 1 or \
+       cputime_arr.item() < 0:
+        raise ValueError("Invalid cputime provided")
+
+    return cputime_arr
+
+cdef real_t* get_cputime_view(np.ndarray cputime_arr):
+    if cputime_arr.item() == 0.:
+        return NULL
+
+    return <real_t*> cputime_arr.data[0]
+
+
+cdef np.ndarray get_nWSR(nWSR):
+    cdef np.ndarray nWSR_arr = None
+
+    if isinstance(nWSR, int):
+        deprecation_warning_nWSR()
+
+    nWSR_arr = np.atleast_1d(nWSR).astype(int_t_type)
+
+    if nWSR_arr.ndim != 1 or \
+       nWSR_arr.size != 1 or \
+       nWSR_arr.item() < 0:
+        raise ValueError("Invalid nWSR provided")
+
+    return nWSR_arr
+
+
 cdef class PyPrintLevel:
     DEBUG_ITER = PL_DEBUG_ITER
     TABULAR    = PL_TABULAR
@@ -769,25 +807,13 @@ cdef class PyQProblemB:
         if guessed_bounds is not None:
             guessed_bounds.thisptr.get()
 
-        # enable nWSR as return value in argument list
-        if isinstance(nWSR, int):
-            deprecation_warning_nWSR()
-            nWSR_tmp = np.array([nWSR], dtype=int)
-        else:
-            nWSR_tmp = nWSR
+        nWSR_tmp = get_nWSR(nWSR)
 
         self.Hobj = H
         self.Hptr = create_symm_matrix(H)
 
-        if cputime > 1.e-16:
-            # enable cputime as return value in argument list
-            if isinstance(cputime, float):
-                deprecation_warning_cputime()
-                cput_tmp = np.array([cputime], dtype=float)
-            else:
-                cput_tmp = cputime
-
-            cput_view = <real_t*> cput_tmp.data
+        cput_tmp = get_cputime(cputime)
+        cput_view = get_cputime_view(cput_tmp)
 
         check_return_value(deref(self.thisptr).init(
             self.Hptr.get(),
@@ -810,36 +836,25 @@ cdef class PyQProblemB:
         ):
         # FIXME: add asserts
         cdef np.ndarray nWSR_tmp
-        cdef np.ndarray cput_tmp
+        # cdef np.ndarray cput_tmp
         cdef Bounds* guessed_bounds_view = NULL
+        cdef np.ndarray cput_tmp
         cdef real_t* cput_view = NULL
 
         if guessed_bounds is not None:
             guessed_bounds_view = guessed_bounds.thisptr.get()
 
-        # enable nWSR as return value in argument list
-        if isinstance(nWSR, int):
-            deprecation_warning_nWSR()
-            nWSR_tmp = np.array([nWSR], dtype=int)
-        else:
-            nWSR_tmp = nWSR#np.asarray(nWSR, dtype=int)
+        nWSR_tmp = get_nWSR(nWSR)
 
-        if cputime > 1.e-16:
-            # enable cputime as return value in argument list
-            if isinstance(cputime, float):
-                deprecation_warning_cputime()
-                cput_tmp = np.array([cputime], dtype=float)
-            else:
-                cput_tmp = cputime#np.asarray(cputime, dtype=float)
-
-            cput_view = <real_t*> &cput_tmp.data[0]
+        cput_tmp = get_cputime(cputime)
+        cput_view = get_cputime_view(cput_tmp)
 
         check_return_value(deref(self.thisptr).hotstart(
                 <real_t*> g.data,
                 <real_t*> lb.data,
                 <real_t*> ub.data,
                 <int_t&>  nWSR_tmp.data[0],
-                <real_t*> cput_view,
+                cput_view,
                 guessed_bounds_view))
 
     def getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
@@ -922,18 +937,13 @@ cdef class PyQProblem:
         # FIXME: add asserts
         cdef np.ndarray nWSR_tmp
         cdef np.ndarray cput_tmp
+        cdef real_t* cput_view = NULL
         cdef real_t* x_opt_view = NULL
         cdef real_t* y_opt_view = NULL
         cdef Bounds* guessed_bounds_view = NULL
         cdef Constraints* guessed_constraints_view = NULL
-        cdef real_t* cput_view = NULL
 
-        # enable nWSR as return value in argument list
-        if isinstance(nWSR, int):
-            deprecation_warning_nWSR()
-            nWSR_tmp = np.array([nWSR], dtype=int)
-        else:
-            nWSR_tmp = nWSR
+        nWSR_tmp = get_nWSR(nWSR)
 
         self.Hobj = H
         self.Hptr = create_symm_matrix(H)
@@ -953,15 +963,8 @@ cdef class PyQProblem:
         if guessed_constraints is not None:
             guessed_constraints_view = guessed_constraints.thisptr.get()
 
-        if cputime > 1.e-16:
-            # enable cputime as return value in argument list
-            if isinstance(cputime, float):
-                deprecation_warning_cputime()
-                cput_tmp = np.array([cputime], dtype=float)
-            else:
-                cput_tmp = cputime
-
-            cput_view = <real_t*> cput_tmp.data
+        cput_tmp = get_cputime(cputime)
+        cput_view = get_cputime_view(cput_tmp)
 
         check_return_value(deref(self.thisptr).init(
                     self.Hptr.get(),
@@ -972,7 +975,7 @@ cdef class PyQProblem:
                     <real_t*> lbA.data,
                     <real_t*> ubA.data,
                     <int_t&>  nWSR_tmp.data[0],
-                    <real_t*> cput_view,
+                    cput_view,
                     x_opt_view,
                     y_opt_view,
                     guessed_bounds_view,
@@ -992,10 +995,10 @@ cdef class PyQProblem:
         # FIXME: add asserts
         cdef np.ndarray nWSR_tmp
         cdef np.ndarray cput_tmp
+        cdef real_t* cput_view = NULL
 
         cdef Bounds* guessed_bounds_view = NULL
         cdef Constraints* guessed_constraints_view = NULL
-        cdef real_t* cput_view = NULL
 
         if guessed_bounds is not None:
             guessed_bounds_view = guessed_bounds.thisptr.get()
@@ -1003,22 +1006,10 @@ cdef class PyQProblem:
         if guessed_constraints is not None:
             guessed_constraints_view = guessed_constraints.thisptr.get()
 
-        # enable nWSR as return value in argument list
-        if isinstance(nWSR, int):
-            deprecation_warning_nWSR()
-            nWSR_tmp = np.array([nWSR], dtype=int)
-        else:
-            nWSR_tmp = nWSR
+        nWSR_tmp = get_nWSR(nWSR)
 
-        if cputime > 1.e-16:
-            # enable cputime as return value in argument list
-            if isinstance(cputime, float):
-                deprecation_warning_cputime()
-                cput_tmp = np.array([cputime], dtype=float)
-            else:
-                cput_tmp = cputime
-
-            cput_view = <real_t*> cput_tmp.data
+        cput_tmp = get_cputime(cputime)
+        cput_view = get_cputime_view(cput_tmp)
 
         check_return_value(deref(self.thisptr).hotstart(
                     <real_t*> g.data,
@@ -1027,7 +1018,7 @@ cdef class PyQProblem:
                     <real_t*> lbA.data,
                     <real_t*> ubA.data,
                     <int_t&>  nWSR_tmp.data[0],
-                    <real_t*> &cput_tmp.data[0],
+                    cput_view, #<real_t*> &cput_tmp.data[0],
                     guessed_bounds_view,
                     guessed_constraints_view))
 
@@ -1144,19 +1135,15 @@ cdef class PySQProblem:
     ):
         # FIXME: add asserts
         cdef np.ndarray nWSR_tmp
-        cdef np.ndarray cput_tmp
+        # cdef np.ndarray cput_tmp
         cdef real_t* x_opt_view = NULL
         cdef real_t* y_opt_view = NULL
         cdef Bounds* guessed_bounds_view = NULL
         cdef Constraints* guessed_constraints_view = NULL
+        cdef np.ndarray cput_tmp
         cdef real_t* cput_view = NULL
 
-        # enable nWSR as return value in argument list
-        if isinstance(nWSR, int):
-            deprecation_warning_nWSR()
-            nWSR_tmp = np.array([nWSR], dtype=int)
-        else:
-            nWSR_tmp = np.asarray(nWSR, dtype=int)
+        nWSR_tmp = get_nWSR(nWSR)
 
         self.Hobj = H
         self.Hptr = create_symm_matrix(H)
@@ -1176,15 +1163,8 @@ cdef class PySQProblem:
         if guessed_constraints is not None:
             guessed_constraints_view = guessed_constraints.thisptr.get()
 
-        if cputime > 1.e-16:
-            # enable cputime as return value in argument list
-            if isinstance(cputime, float):
-                deprecation_warning_cputime()
-                cput_tmp = np.array([cputime], dtype=float)
-            else:
-                cput_tmp = cputime
-
-            cput_view = <real_t*> cput_tmp.data
+        cput_tmp = get_cputime(cputime)
+        cput_view = get_cputime_view(cput_tmp)
 
         if hotstart:
             check_return_value(deref(self.thisptr).hotstart(
@@ -1196,7 +1176,7 @@ cdef class PySQProblem:
                         <real_t*> lbA.data,
                         <real_t*> ubA.data,
                         <int_t&>  nWSR_tmp.data[0],
-                        <real_t*> cput_view,
+                        cput_view,
                         guessed_bounds_view,
                         guessed_constraints_view))
         else:
@@ -1209,7 +1189,7 @@ cdef class PySQProblem:
                         <real_t*> lbA.data,
                         <real_t*> ubA.data,
                         <int_t&>  nWSR_tmp.data[0],
-                        <real_t*> cput_view,
+                        cput_view,
                         x_opt_view,
                         y_opt_view,
                         guessed_bounds_view,
