@@ -1288,14 +1288,14 @@ cdef class PySolutionAnalysis:
         np.ndarray[np.double_t, ndim=1] maxCmpl
     ):
         """ """
-        if isinstance(qp, PyQProblemB):
-            return self._getKktViolation_QProblemB(qp, maxStat, maxFeas, maxCmpl)
+        if isinstance(qp, PySQProblem):
+            return self._getKktViolation_SQProblem(qp, maxStat, maxFeas, maxCmpl)
 
         elif isinstance(qp, PyQProblem):
             return self._getKktViolation_QProblem(qp, maxStat, maxFeas, maxCmpl)
 
-        elif isinstance(qp, PySQProblem):
-            return self._getKktViolation_SQProblem(qp, maxStat, maxFeas, maxCmpl)
+        elif isinstance(qp, PyQProblemB):
+            return self._getKktViolation_QProblemB(qp, maxStat, maxFeas, maxCmpl)
 
         else:
             raise ValueError('argument 1 must be QProblemB, QProblem or SQProblem')
