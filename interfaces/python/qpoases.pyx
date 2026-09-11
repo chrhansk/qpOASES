@@ -303,6 +303,16 @@ cdef check_return_value(returnValue retval):
         raise QPOASESError(retval)
 
 
+def check_shape(arr, name, shape):
+    if not arr.flags.c_contiguous:
+        raise ValueError("Array must be c-continuous")
+
+    if arr.shape != shape:
+        raise ValueError("Array {0} has invalid shape (expected: {1}, actual: {2})".format(name,
+                                                                                           shape,
+                                                                                           arr.shape))
+
+
 cdef unique_ptr[SymmetricMatrix] create_symm_matrix(H: np.ndarray | sp.sparse.spmatrix):
     cdef int_t m, n, l
     cdef real_t[:, :] H_view
@@ -382,6 +392,12 @@ cdef unique_ptr[Matrix] create_matrix(A: np.ndarray | sp.sparse.spmatrix):
             raise ValueError("Array must be c-continuous")
 
         A_view = A
+
+        if A.size == 0:
+            return unique_ptr[Matrix](new DenseMatrix(m,
+                                                  n,
+                                                  n,
+                                                  NULL))
 
         return unique_ptr[Matrix](new DenseMatrix(m,
                                                   n,
@@ -671,10 +687,6 @@ cdef class PyIndexlist:
     def __cinit__(self):
         self.thisptr = NULL
 
-    # returnValue init(int_t n)
-    # returnValuegetNumberArray( int_t** const numberarray) const
-    # returnValuegetISortArray(  int_t** const iSortArray) const
-
     def getIndex(self, int_t number):
         return self.thisptr.getIndex(number)
 
@@ -713,7 +725,6 @@ cdef class PyBounds:
             self.thisptr = make_unique[Bounds](<int_t> n)
         else:
             self.thisptr = make_unique[Bounds]()
-
 
     def init(self, n):
         check_return_value(deref(self.thisptr).init(<int_t> n))
@@ -798,7 +809,15 @@ cdef class PyQProblemB:
         cdef Bounds* guessed_bounds_view = NULL
         cdef real_t* cput_view = NULL
 
+        NV = self.NV
+
+        check_shape(H, "H", (NV, NV))
+        check_shape(g, "g", (NV,))
+        check_shape(lb, "lb", (NV,))
+        check_shape(ub, "ub", (NV,))
+
         if x_opt is not None:
+            check_shape(x_opt, "x_opt", (NV,))
             x_opt_view = <real_t*> x_opt.data
 
         if y_opt is not None:
@@ -840,6 +859,11 @@ cdef class PyQProblemB:
         cdef Bounds* guessed_bounds_view = NULL
         cdef np.ndarray cput_tmp
         cdef real_t* cput_view = NULL
+
+        NV = self.NV
+        check_shape(g, "g", (NV,))
+        check_shape(lb, "lb", (NV,))
+        check_shape(ub, "ub", (NV,))
 
         if guessed_bounds is not None:
             guessed_bounds_view = guessed_bounds.thisptr.get()
@@ -943,6 +967,18 @@ cdef class PyQProblem:
         cdef Bounds* guessed_bounds_view = NULL
         cdef Constraints* guessed_constraints_view = NULL
 
+        NV = self.NV
+        NC = self.NC
+
+        check_shape(H, "H", (NV, NV))
+        check_shape(A, "A", (NC, NV))
+        check_shape(g, "g", (NV,))
+        check_shape(lb, "lb", (NV,))
+        check_shape(ub, "ub", (NV,))
+        
+        check_shape(lbA, "lbA", (NC,))
+        check_shape(ubA, "ubA", (NC,))
+
         nWSR_tmp = get_nWSR(nWSR)
 
         self.Hobj = H
@@ -952,9 +988,11 @@ cdef class PyQProblem:
         self.Aptr = create_matrix(A)
 
         if x_opt is not None:
+            check_shape(x_opt, "x_opt", (NV,))
             x_opt_view = <real_t*> x_opt_view
 
         if y_opt is not None:
+            check_shape(y_opt, "y_opt", (NC,))
             y_opt_view = <real_t*> y_opt_view
 
         if guessed_bounds is not None:
@@ -999,6 +1037,16 @@ cdef class PyQProblem:
 
         cdef Bounds* guessed_bounds_view = NULL
         cdef Constraints* guessed_constraints_view = NULL
+
+        NV = self.NV
+        NC = self.NC
+
+        check_shape(g, "g", (NV,))
+        check_shape(lb, "lb", (NV,))
+        check_shape(ub, "ub", (NV,))
+        
+        check_shape(lbA, "lbA", (NC,))
+        check_shape(ubA, "ubA", (NC,))
 
         if guessed_bounds is not None:
             guessed_bounds_view = guessed_bounds.thisptr.get()
@@ -1143,6 +1191,18 @@ cdef class PySQProblem:
         cdef np.ndarray cput_tmp
         cdef real_t* cput_view = NULL
 
+        NV = self.NV
+        NC = self.NC
+
+        check_shape(H, "H", (NV, NV))
+        check_shape(A, "A", (NC, NV))
+        check_shape(g, "g", (NV,))
+        check_shape(lb, "lb", (NV,))
+        check_shape(ub, "ub", (NV,))
+        
+        check_shape(lbA, "lbA", (NC,))
+        check_shape(ubA, "ubA", (NC,))
+
         nWSR_tmp = get_nWSR(nWSR)
 
         self.Hobj = H
@@ -1152,9 +1212,11 @@ cdef class PySQProblem:
         self.Aptr = create_matrix(A)
 
         if x_opt is not None:
+            check_shape(x_opt, "x_opt", (NV,))
             x_opt_view = <real_t*> x_opt_view
 
         if y_opt is not None:
+            check_shape(y_opt, "y_opt", (NC,))
             y_opt_view = <real_t*> y_opt_view
 
         if guessed_bounds is not None:
@@ -1212,9 +1274,13 @@ cdef class PySQProblem:
                          guessed_bounds, guessed_constraints, hotstart=True)
 
     cpdef getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
+        NV = self.NV
+        check_shape(xOpt, "xOpt", (NV,))
         return deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data)
 
     cpdef getDualSolution(self, np.ndarray[np.double_t, ndim=1] yOpt):
+        NC = self.NC
+        check_shape(yOpt, "yOpt", (NC,))
         return deref(self.thisptr).getDualSolution(<real_t*> yOpt.data)
 
     cpdef getObjVal(self):
