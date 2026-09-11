@@ -424,6 +424,9 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
                              real_t*,
                              const Bounds* const)
 
+        BooleanType isSolved() const
+        BooleanType isInfeasible() const
+        BooleanType isUnbounded() const
 
         returnValue getPrimalSolution(real_t*)
         returnValue getDualSolution(real_t*)

@@ -881,6 +881,15 @@ cdef class PyQProblemB:
                 cput_view,
                 guessed_bounds_view))
 
+    cpdef bint isSolved(self):
+        return deref(self.thisptr).isSolved()
+
+    cpdef bint isInfeasible(self):
+        return deref(self.thisptr).isInfeasible()
+
+    cpdef bint isUnbounded(self):
+        return deref(self.thisptr).isUnbounded()
+
     def getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
         return deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data)
 
@@ -1069,6 +1078,15 @@ cdef class PyQProblem:
                     cput_view, #<real_t*> &cput_tmp.data[0],
                     guessed_bounds_view,
                     guessed_constraints_view))
+
+    cpdef bint isSolved(self):
+        return deref(self.thisptr).isSolved()
+
+    cpdef bint isInfeasible(self):
+        return deref(self.thisptr).isInfeasible()
+
+    cpdef bint isUnbounded(self):
+        return deref(self.thisptr).isUnbounded()
 
     cpdef getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
         check_return_value(deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data))
@@ -1272,6 +1290,15 @@ cdef class PySQProblem:
     ):
         self._maybe_init(H, g, A, lb, ub, lbA, ubA, nWSR, cputime, None, None,
                          guessed_bounds, guessed_constraints, hotstart=True)
+
+    cpdef bint isSolved(self):
+        return deref(self.thisptr).isSolved()
+
+    cpdef bint isInfeasible(self):
+        return deref(self.thisptr).isInfeasible()
+
+    cpdef bint isUnbounded(self):
+        return deref(self.thisptr).isUnbounded()
 
     cpdef getPrimalSolution(self, np.ndarray[np.double_t, ndim=1] xOpt):
         NV = self.NV
