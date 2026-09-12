@@ -74,19 +74,17 @@ cdef bint bt_to_bool(BooleanType value):
 
 
 cdef np.ndarray get_cputime(cputime):
-    cdef np.ndarray cputime_arr = None
-
     if isinstance(cputime, float) and cputime != 0:
         deprecation_warning_cputime()
 
-    cputime_arr = np.atleast_1d(cputime).astype(real_t_type)
+    if isinstance(cputime, float):
+        cputime = np.array([cputime], dtype=real_t_type)
 
-    if cputime_arr.ndim != 1 or \
-       cputime_arr.size != 1 or \
-       cputime_arr.item() < 0:
+    if cputime.shape!= (1,) or cputime.item() < 0:
         raise ValueError("Invalid cputime provided")
 
-    return cputime_arr
+    return <np.ndarray> cputime
+
 
 cdef real_t* get_cputime_view(np.ndarray cputime_arr):
     if cputime_arr.item() == 0.:
@@ -96,19 +94,14 @@ cdef real_t* get_cputime_view(np.ndarray cputime_arr):
 
 
 cdef np.ndarray get_nWSR(nWSR):
-    cdef np.ndarray nWSR_arr = None
-
     if isinstance(nWSR, int):
         deprecation_warning_nWSR()
+        nWSR = np.array([nWSR], dtype=int_t_type)
 
-    nWSR_arr = np.atleast_1d(nWSR).astype(int_t_type)
-
-    if nWSR_arr.ndim != 1 or \
-       nWSR_arr.size != 1 or \
-       nWSR_arr.item() < 0:
+    if nWSR.shape != (1,) or nWSR.item() < 0:
         raise ValueError("Invalid nWSR provided")
 
-    return nWSR_arr
+    return <np.ndarray> nWSR
 
 
 cdef class PyPrintLevel:
