@@ -93,6 +93,20 @@ cdef real_t* get_cputime_view(np.ndarray cputime_arr):
     return <real_t*> cputime_arr.data[0]
 
 
+cdef real_t* get_vec_view(np.ndarray vec):
+    assert vec.ndim == 1
+    if vec.size == 0:
+        return <real_t*> NULL
+    return <real_t*> vec.data
+
+
+cdef real_t* get_mat_view(np.ndarray mat):
+    assert mat.ndim == 2
+    if mat.size == 0:
+        return <real_t*> NULL
+    return <real_t*> mat.data
+
+
 cdef np.ndarray get_nWSR(nWSR):
     if isinstance(nWSR, int):
         deprecation_warning_nWSR()
@@ -333,7 +347,7 @@ cdef unique_ptr[SymmetricMatrix] create_symm_matrix(H: np.ndarray | sp.sparse.sp
         return unique_ptr[SymmetricMatrix](new SymDenseMat(m,
                                                            n,
                                                            n,
-                                                           <real_t*> &H_view[0, 0]))
+                                                           get_mat_view(H)))
 
     else:
         if not sp.sparse.issparse(H):
@@ -395,7 +409,7 @@ cdef unique_ptr[Matrix] create_matrix(A: np.ndarray | sp.sparse.spmatrix):
         return unique_ptr[Matrix](new DenseMatrix(m,
                                                   n,
                                                   n,
-                                                  <real_t*> &A_view[0, 0]))
+                                                  get_mat_view(A)))
 
     else:
         if not sp.sparse.issparse(A):
@@ -811,10 +825,10 @@ cdef class PyQProblemB:
 
         if x_opt is not None:
             check_shape(x_opt, "x_opt", (NV,))
-            x_opt_view = <real_t*> x_opt.data
+            x_opt_view = get_vec_view(x_opt)
 
         if y_opt is not None:
-            y_opt_view = <real_t*> y_opt.data
+            y_opt_view = get_vec_view(y_opt)
 
         if guessed_bounds is not None:
             guessed_bounds.thisptr.get()
@@ -829,9 +843,9 @@ cdef class PyQProblemB:
 
         check_return_value(deref(self.thisptr).init(
             self.Hptr.get(),
-            <real_t*> g.data,
-            <real_t*> lb.data,
-            <real_t*> ub.data,
+            get_vec_view(g),
+            get_vec_view(lb),
+            get_vec_view(ub),
             <int_t&>  nWSR_tmp.data[0],
             cput_view,
             x_opt_view,
@@ -867,9 +881,9 @@ cdef class PyQProblemB:
         cput_view = get_cputime_view(cput_tmp)
 
         check_return_value(deref(self.thisptr).hotstart(
-                <real_t*> g.data,
-                <real_t*> lb.data,
-                <real_t*> ub.data,
+                get_vec_view(g),
+                get_vec_view(lb),
+                get_vec_view(ub),
                 <int_t&>  nWSR_tmp.data[0],
                 cput_view,
                 guessed_bounds_view))
@@ -991,11 +1005,11 @@ cdef class PyQProblem:
 
         if x_opt is not None:
             check_shape(x_opt, "x_opt", (NV,))
-            x_opt_view = <real_t*> x_opt_view
+            x_opt_view = get_vec_view(x_opt)
 
         if y_opt is not None:
             check_shape(y_opt, "y_opt", (NC,))
-            y_opt_view = <real_t*> y_opt_view
+            y_opt_view = get_vec_view(y_opt)
 
         if guessed_bounds is not None:
             guessed_bounds_view = guessed_bounds.thisptr.get()
@@ -1008,12 +1022,12 @@ cdef class PyQProblem:
 
         check_return_value(deref(self.thisptr).init(
                     self.Hptr.get(),
-                    <real_t*> g.data,
+                    get_vec_view(g),
                     self.Aptr.get(),
-                    <real_t*> lb.data,
-                    <real_t*> ub.data,
-                    <real_t*> lbA.data,
-                    <real_t*> ubA.data,
+                    get_vec_view(lb),
+                    get_vec_view(ub),
+                    get_vec_view(lbA),
+                    get_vec_view(ubA),
                     <int_t&>  nWSR_tmp.data[0],
                     cput_view,
                     x_opt_view,
@@ -1062,11 +1076,11 @@ cdef class PyQProblem:
         cput_view = get_cputime_view(cput_tmp)
 
         check_return_value(deref(self.thisptr).hotstart(
-                    <real_t*> g.data,
-                    <real_t*> lb.data,
-                    <real_t*> ub.data,
-                    <real_t*> lbA.data,
-                    <real_t*> ubA.data,
+                    get_vec_view(g),
+                    get_vec_view(lb),
+                    get_vec_view(ub),
+                    get_vec_view(lbA),
+                    get_vec_view(ubA),
                     <int_t&>  nWSR_tmp.data[0],
                     cput_view, #<real_t*> &cput_tmp.data[0],
                     guessed_bounds_view,
@@ -1224,11 +1238,11 @@ cdef class PySQProblem:
 
         if x_opt is not None:
             check_shape(x_opt, "x_opt", (NV,))
-            x_opt_view = <real_t*> x_opt_view
+            x_opt_view = get_vec_view(x_opt)
 
         if y_opt is not None:
             check_shape(y_opt, "y_opt", (NC,))
-            y_opt_view = <real_t*> y_opt_view
+            y_opt_view = get_vec_view(y_opt)
 
         if guessed_bounds is not None:
             guessed_bounds_view = guessed_bounds.thisptr.get()
@@ -1242,12 +1256,12 @@ cdef class PySQProblem:
         if hotstart:
             check_return_value(deref(self.thisptr).hotstart(
                         self.Hptr.get(),
-                        <real_t*> g.data,
+                        get_vec_view(g),
                         self.Aptr.get(),
-                        <real_t*> lb.data,
-                        <real_t*> ub.data,
-                        <real_t*> lbA.data,
-                        <real_t*> ubA.data,
+                        get_vec_view(lb),
+                        get_vec_view(ub),
+                        get_vec_view(lbA),
+                        get_vec_view(ubA),
                         <int_t&>  nWSR_tmp.data[0],
                         cput_view,
                         guessed_bounds_view,
@@ -1255,12 +1269,12 @@ cdef class PySQProblem:
         else:
             check_return_value(deref(self.thisptr).init(
                         self.Hptr.get(),
-                        <real_t*> g.data,
+                        get_vec_view(g),
                         self.Aptr.get(),
-                        <real_t*> lb.data,
-                        <real_t*> ub.data,
-                        <real_t*> lbA.data,
-                        <real_t*> ubA.data,
+                        get_vec_view(lb),
+                        get_vec_view(ub),
+                        get_vec_view(lbA),
+                        get_vec_view(ubA),
                         <int_t&>  nWSR_tmp.data[0],
                         cput_view,
                         x_opt_view,
