@@ -828,6 +828,7 @@ cdef class PyQProblemB:
             x_opt_view = get_vec_view(x_opt)
 
         if y_opt is not None:
+            check_shape(y_opt, "y_opt", (NV,))
             y_opt_view = get_vec_view(y_opt)
 
         if guessed_bounds is not None:
@@ -900,7 +901,9 @@ cdef class PyQProblemB:
         return deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data)
 
     def getDualSolution(self, np.ndarray[np.double_t, ndim=1] yOpt):
-        return deref(self.thisptr).getDualSolution(<real_t*> yOpt.data)
+        NV = self.NV
+        check_shape(yOpt, "yOpt", (NV,))
+        check_return_value(deref(self.thisptr).getDualSolution(<real_t*> yOpt.data))
 
     def getObjVal(self):
         return deref(self.thisptr).getObjVal()
@@ -1002,7 +1005,7 @@ cdef class PyQProblem:
             x_opt_view = get_vec_view(x_opt)
 
         if y_opt is not None:
-            check_shape(y_opt, "y_opt", (NC,))
+            check_shape(y_opt, "y_opt", (NV + NC,))
             y_opt_view = get_vec_view(y_opt)
 
         if guessed_bounds is not None:
@@ -1093,6 +1096,9 @@ cdef class PyQProblem:
         check_return_value(deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data))
 
     cpdef getDualSolution(self, np.ndarray[np.double_t, ndim=1] yOpt):
+        NV = self.NV
+        NC = self.NC
+        check_shape(yOpt, "yOpt", (NV + NC,))
         check_return_value(deref(self.thisptr).getDualSolution(<real_t*> yOpt.data))
 
     cpdef getObjVal(self):
@@ -1230,7 +1236,7 @@ cdef class PySQProblem:
             x_opt_view = get_vec_view(x_opt)
 
         if y_opt is not None:
-            check_shape(y_opt, "y_opt", (NC,))
+            check_shape(y_opt, "y_opt", (NV + NC,))
             y_opt_view = get_vec_view(y_opt)
 
         if guessed_bounds is not None:
@@ -1302,9 +1308,10 @@ cdef class PySQProblem:
         return deref(self.thisptr).getPrimalSolution(<real_t*> xOpt.data)
 
     cpdef getDualSolution(self, np.ndarray[np.double_t, ndim=1] yOpt):
+        NV = self.NV
         NC = self.NC
-        check_shape(yOpt, "yOpt", (NC,))
-        return deref(self.thisptr).getDualSolution(<real_t*> yOpt.data)
+        check_shape(yOpt, "yOpt", (NV + NC,))
+        check_return_value(deref(self.thisptr).getDualSolution(<real_t*> yOpt.data))
 
     cpdef getObjVal(self):
         return deref(self.thisptr).getObjVal()
