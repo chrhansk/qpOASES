@@ -100,6 +100,14 @@ cdef real_t* get_vec_view(np.ndarray vec):
     return <real_t*> vec.data
 
 
+cdef sparse_int_t* get_index_view(np.ndarray vec):
+    assert vec.ndim == 1
+    assert vec.dtype == sparse_int_t_type
+    if vec.size == 0:
+        return <sparse_int_t*> NULL
+    return <sparse_int_t*> vec.data
+
+
 cdef real_t* get_mat_view(np.ndarray mat):
     assert mat.ndim == 2
     if mat.size == 0:
@@ -311,7 +319,7 @@ cdef check_return_value(returnValue retval):
 
 
 def check_shape(arr, name, shape):
-    if not arr.flags.c_contiguous:
+    if isinstance(arr, np.ndarray) and not arr.flags.c_contiguous:
         raise ValueError("Array must be c-continuous")
 
     if arr.shape != shape:
@@ -320,119 +328,113 @@ def check_shape(arr, name, shape):
                                                                                            arr.shape))
 
 
-cdef unique_ptr[SymmetricMatrix] create_symm_matrix(H: np.ndarray | sp.sparse.spmatrix):
-    cdef int_t m, n, l
-    cdef real_t[:, :] H_view
-    cdef SymSparseMat* sparse_ptr = NULL
+cdef class PySymmMat:
+    cdef dict __dict__
+    cdef unique_ptr[SymmetricMatrix] mat_ptr
 
-    cdef int_t[:] H_rows
-    cdef int_t[:] H_cols
-    cdef real_t[:] H_data
+    def __cinit__(self, H: np.ndarray | sp.sparse.spmatrix):
+        cdef SymSparseMat* sparse_ptr = NULL
+        assert H.ndim == 2
 
-    if isinstance(H, np.ndarray):
-        H = np.atleast_2d(H)
-        if H.ndim != 2:
-            raise ValueError("Invalid matrix shape")
+        if isinstance(H, np.ndarray):
+            H = np.atleast_2d(H)
+            if H.ndim != 2:
+                raise ValueError("Invalid matrix shape")
 
-        (m, n) = H.shape[:2]
+            (m, n) = H.shape[:2]
 
-        if m != n:
-            raise ValueError("Matrix must be square")
+            if m != n:
+                raise ValueError("Matrix must be square")
 
-        if not H.flags.c_contiguous:
-            raise ValueError("Array must be c-continuous")
+            if not H.flags.c_contiguous:
+                raise ValueError("Array must be c-continuous")
 
-        H_view = H
+            self.H = H
 
-        return unique_ptr[SymmetricMatrix](new SymDenseMat(m,
-                                                           n,
-                                                           n,
-                                                           get_mat_view(H)))
+            self.mat_ptr = unique_ptr[SymmetricMatrix](new SymDenseMat(m,
+                                                                       n,
+                                                                       n,
+                                                                       get_mat_view(self.H)))
 
-    else:
-        if not sp.sparse.issparse(H):
-            raise ValueError("Unknown matrix type")
+        else:
+            if not sp.sparse.issparse(H):
+                raise ValueError("Unknown matrix type")
 
-        if H.format != "csc":
-            warnings.warn(
-                "Matrix is required to be CSC",
-                SparseEfficiencyWarning,
-            )
-            H = H.tocsc()
+            if H.format != "csc":
+                warnings.warn(
+                    "Matrix is required to be CSC",
+                    SparseEfficiencyWarning,
+                )
+                H = H.tocsc()
 
-        (m, n) = H.shape[:2]
+            (m, n) = H.shape[:2]
 
-        if m != n:
-            raise ValueError("Matrix must be square")
+            if m != n:
+                raise ValueError("Matrix must be square")
 
-        H_rows = H.indices.astype(sparse_int_t_type, copy=False)
-        H_cols = H.indptr.astype(sparse_int_t_type, copy=False)
-        H_data = H.data.astype(real_t_type, copy=False)
+            self.H_rows = H.indices.astype(sparse_int_t_type, copy=False)
+            self.H_cols = H.indptr.astype(sparse_int_t_type, copy=False)
+            self.H_data = H.data.astype(real_t_type, copy=False)
 
-        sparse_ptr = new SymSparseMat(m,
-                                      n,
-                                      <sparse_int_t*> & H_rows[0],
-                                      <sparse_int_t*> & H_cols[0],
-                                      <real_t*> & H_data[0])
+            sparse_ptr = new SymSparseMat(m,
+                                          n,
+                                          get_index_view(self.H_rows),
+                                          get_index_view(self.H_cols),
+                                          get_vec_view(self.H_data))
 
-        deref(sparse_ptr).createDiagInfo()
+            deref(sparse_ptr).createDiagInfo()
+            self.mat_ptr = unique_ptr[SymmetricMatrix](sparse_ptr)
 
-        return unique_ptr[SymmetricMatrix](sparse_ptr)
+        assert not deref(self.mat_ptr).needToFreeMemory()
 
 
-cdef unique_ptr[Matrix] create_matrix(A: np.ndarray | sp.sparse.spmatrix):
-    cdef int_t m, n, l
-    cdef real_t[:, :] A_view
+cdef class PyMat:
+    cdef dict __dict__
+    cdef unique_ptr[Matrix] mat_ptr
 
-    cdef int_t[:] A_rows
-    cdef int_t[:] A_cols
-    cdef real_t[:] A_data
+    def __cinit__(self, A: np.ndarray | sp.sparse.spmatrix):
+        cdef int_t m, n, l
+        cdef real_t[:, :] A_view
 
-    if isinstance(A, np.ndarray):
-        A = np.atleast_2d(A)
-        if A.ndim != 2:
-            raise ValueError("Invalid matrix shape")
+        if isinstance(A, np.ndarray):
+            self.A = np.atleast_2d(A)
+            if A.ndim != 2:
+                raise ValueError("Invalid matrix shape")
 
-        (m, n) = A.shape[:2]
+            (m, n) = A.shape[:2]
 
-        if not A.flags.c_contiguous:
-            raise ValueError("Array must be c-continuous")
+            if not A.flags.c_contiguous:
+                raise ValueError("Array must be c-continuous")
 
-        A_view = A
+            self.mat_ptr = unique_ptr[Matrix](new DenseMatrix(m,
+                                                              n,
+                                                              n,
+                                                              get_mat_view(self.A)))
 
-        if A.size == 0:
-            return unique_ptr[Matrix](new DenseMatrix(m,
-                                                  n,
-                                                  n,
-                                                  NULL))
+        else:
+            if not sp.sparse.issparse(A):
+                raise ValueError("Unknown matrix type")
 
-        return unique_ptr[Matrix](new DenseMatrix(m,
-                                                  n,
-                                                  n,
-                                                  get_mat_view(A)))
+            if A.format != "csc":
+                warnings.warn(
+                    "Matrix is required to be CSC",
+                    SparseEfficiencyWarning,
+                )
+                A = A.tocsc()
 
-    else:
-        if not sp.sparse.issparse(A):
-            raise ValueError("Unknown matrix type")
+            (m, n) = A.shape[:2]
 
-        if A.format != "csc":
-            warnings.warn(
-                "Matrix is required to be CSC",
-                SparseEfficiencyWarning,
-            )
-            A = A.tocsc()
+            self.A_rows = A.indices.astype(sparse_int_t_type, copy=False)
+            self.A_cols = A.indptr.astype(sparse_int_t_type, copy=False)
+            self.A_data = A.data.astype(real_t_type, copy=False)
 
-        (m, n) = A.shape[:2]
+            self.mat_ptr = unique_ptr[Matrix](new SparseMatrix(m,
+                                                               n,
+                                                               get_index_view(self.A_rows),
+                                                               get_index_view(self.A_cols),
+                                                               get_vec_view(self.A_data)))
 
-        A_rows = A.indices.astype(sparse_int_t_type, copy=False)
-        A_cols = A.indptr.astype(sparse_int_t_type, copy=False)
-        A_data = A.data.astype(real_t_type, copy=False)
-
-        sparse_ptr = unique_ptr[Matrix](new SparseMatrix(m,
-                                                         n,
-                                                         <sparse_int_t*> & A_rows[0],
-                                                         <sparse_int_t*> & A_cols[0],
-                                                         <real_t*> & A_data[0]))
+        assert not deref(self.mat_ptr).needToFreeMemory()
 
 
 cdef get_working_set_bounds(QProblemB* problem):
@@ -788,14 +790,12 @@ cdef class PyBounds:
 
 cdef class PyQProblemB:
     cdef unique_ptr[QProblemB] thisptr      # hold a C++ instance which we're wrapping
-    cdef unique_ptr[SymmetricMatrix] Hptr
-    cdef object Hobj
+    cdef PySymmMat H
 
     def __cinit__(self,
                   long nV,
                   PyHessianType hessian_type=PyHessianType.UNKNOWN):
         self.thisptr = make_unique[QProblemB](<int_t> nV, <HessianType> hessian_type, BT_TRUE)
-        self.Hobj = None
 
     def init(self,
              H: np.ndarray | sp.sparse.spmatrix,
@@ -835,14 +835,13 @@ cdef class PyQProblemB:
 
         nWSR_tmp = get_nWSR(nWSR)
 
-        self.Hobj = H
-        self.Hptr = create_symm_matrix(H)
+        self.H = PySymmMat(H)
 
         cput_tmp = get_cputime(cputime)
         cput_view = get_cputime_view(cput_tmp)
 
         check_return_value(deref(self.thisptr).init(
-            self.Hptr.get(),
+            self.H.mat_ptr.get(),
             get_vec_view(g),
             get_vec_view(lb),
             get_vec_view(ub),
@@ -948,10 +947,8 @@ cdef class PyQProblemB:
 
 cdef class PyQProblem:
     cdef unique_ptr[QProblem] thisptr      # hold a C++ instance which we're wrapping
-    cdef unique_ptr[SymmetricMatrix] Hptr
-    cdef object Hobj
-    cdef unique_ptr[Matrix] Aptr
-    cdef object Aobj
+    cdef PySymmMat H
+    cdef PyMat A
 
     def __cinit__(self,
                   long nV,
@@ -997,11 +994,8 @@ cdef class PyQProblem:
 
         nWSR_tmp = get_nWSR(nWSR)
 
-        self.Hobj = H
-        self.Hptr = create_symm_matrix(H)
-
-        self.Aobj = A
-        self.Aptr = create_matrix(A)
+        self.H = PySymmMat(H)
+        self.A = PyMat(A)
 
         if x_opt is not None:
             check_shape(x_opt, "x_opt", (NV,))
@@ -1021,9 +1015,9 @@ cdef class PyQProblem:
         cput_view = get_cputime_view(cput_tmp)
 
         check_return_value(deref(self.thisptr).init(
-                    self.Hptr.get(),
+                    self.H.mat_ptr.get(),
                     get_vec_view(g),
-                    self.Aptr.get(),
+                    self.A.mat_ptr.get(),
                     get_vec_view(lb),
                     get_vec_view(ub),
                     get_vec_view(lbA),
@@ -1161,10 +1155,8 @@ cdef class PyQProblem:
 
 cdef class PySQProblem:
     cdef unique_ptr[SQProblem] thisptr      # hold a C++ instance which we're wrapping
-    cdef unique_ptr[SymmetricMatrix] Hptr
-    cdef object Hobj
-    cdef unique_ptr[Matrix] Aptr
-    cdef object Aobj
+    cdef PySymmMat H
+    cdef PyMat A
 
     def __cinit__(self,
                   int_t nV,
@@ -1230,11 +1222,8 @@ cdef class PySQProblem:
 
         nWSR_tmp = get_nWSR(nWSR)
 
-        self.Hobj = H
-        self.Hptr = create_symm_matrix(H)
-
-        self.Aobj = A
-        self.Aptr = create_matrix(A)
+        self.H = PySymmMat(H)
+        self.A = PyMat(A)
 
         if x_opt is not None:
             check_shape(x_opt, "x_opt", (NV,))
@@ -1255,9 +1244,9 @@ cdef class PySQProblem:
 
         if hotstart:
             check_return_value(deref(self.thisptr).hotstart(
-                        self.Hptr.get(),
+                        self.H.mat_ptr.get(),
                         get_vec_view(g),
-                        self.Aptr.get(),
+                        self.A.mat_ptr.get(),
                         get_vec_view(lb),
                         get_vec_view(ub),
                         get_vec_view(lbA),
@@ -1268,9 +1257,9 @@ cdef class PySQProblem:
                         guessed_constraints_view))
         else:
             check_return_value(deref(self.thisptr).init(
-                        self.Hptr.get(),
+                        self.H.mat_ptr.get(),
                         get_vec_view(g),
-                        self.Aptr.get(),
+                        self.A.mat_ptr.get(),
                         get_vec_view(lb),
                         get_vec_view(ub),
                         get_vec_view(lbA),

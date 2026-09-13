@@ -248,7 +248,7 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
         RET_SIMPLE_STATUS_M3
 
     cdef cppclass Matrix:
-        pass
+        BooleanType needToFreeMemory() const
 
     cdef cppclass SymmetricMatrix(Matrix):
         sparse_int_t* createDiagInfo()
