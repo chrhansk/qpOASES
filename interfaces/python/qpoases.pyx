@@ -674,10 +674,10 @@ cdef class PyConstraints:
         return inactiveList
 
     def getStatus(self, int_t i):
-        return deref(self.thisptr).getStatus(i)
+        return PySubjectToStatus(deref(self.thisptr).getStatus(i))
 
-    def setStatus(self, int_t i, SubjectToStatus value):
-        return deref(self.thisptr).setStatus(i, value)
+    def setStatus(self, int_t i, PySubjectToStatus value):
+        check_return_value(deref(self.thisptr).setStatus(i, <SubjectToStatus> value))
 
     def copy(self):
         cdef PyConstraints copied = PyConstraints()
@@ -775,10 +775,10 @@ cdef class PyBounds:
         return fixedList
 
     def getStatus(self, int_t i):
-        return deref(self.thisptr).getStatus(i)
+        return PySubjectToStatus(deref(self.thisptr).getStatus(i))
 
-    def setStatus(self, int_t i, SubjectToStatus value):
-        return deref(self.thisptr).setStatus(i, value)
+    def setStatus(self, int_t i, PySubjectToStatus value):
+        check_return_value(deref(self.thisptr).setStatus(i, <SubjectToStatus> value))
 
     def copy(self):
         cdef PyBounds copied = PyBounds()
