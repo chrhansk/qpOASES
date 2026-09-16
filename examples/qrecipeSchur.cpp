@@ -44,7 +44,6 @@ int main( )
 {
 	USING_NAMESPACE_QPOASES
 
-	long i;
 	int_t nWSR;
 	real_t errP1, errP2, errP3, errD1, errD2, errD3, tic, toc;
 	real_t *x1 = new real_t[NV];
@@ -61,9 +60,11 @@ int main( )
 	H->createDiagInfo();
 
 	real_t* H_full = H->full();
-    for (int i = 0; i < NV; i++)
-        for (int j = 0; j < NV; j++)
-            printf("H[%i,%i] = %f\n", i, j, H_full[i*NV+j]);
+	for (int i = 0; i < NV; i++) {
+		for (int j = 0; j < NV; j++)
+			printf("H[%i,%i] = %f\n", i, j, H_full[i*NV+j]);
+	}
+
 	real_t* A_full = A->full();
 
 	SymDenseMat *Hd = new SymDenseMat(NV, NV, NV, H_full);
@@ -100,7 +101,7 @@ int main( )
 	qrecipeSchur.getPrimalSolution(x3);
 	qrecipeSchur.getDualSolution(y3);
 
-    fprintf(stdFile, "Solved sparse problem (Schur complement approach) in %d iterations, %.3f seconds.\n", (int)nWSR, toc-tic);
+		fprintf(stdFile, "Solved sparse problem (Schur complement approach) in %d iterations, %.3f seconds.\n", (int)nWSR, toc-tic);
 
 	/* check distance of solutions */
 	errP1 = 0.0;
@@ -108,11 +109,11 @@ int main( )
 	errP3 = 0.0;
 	#ifndef SOLVER_NONE
 	for (i = 0; i < NV; i++)
-    {
-        fprintf(stdFile, "x3[%i]=%f\n", i, x3[i]);
+		{
+				fprintf(stdFile, "x3[%i]=%f\n", i, x3[i]);
 		if (getAbs(x1[i] - x2[i]) > errP1)
 			errP1 = getAbs(x1[i] - x2[i]);
-    }
+		}
 	for (i = 0; i < NV; i++)
 		if (getAbs(x1[i] - x3[i]) > errP2)
 			errP2 = getAbs(x1[i] - x3[i]);
@@ -127,7 +128,7 @@ int main( )
 	errD1 = 0.0;
 	errD2 = 0.0;
 	errD3 = 0.0;
-	for (i = 0; i < NV+NC; i++)
+	for (int i = 0; i < NV+NC; i++)
 		if (getAbs(y1[i] - y2[i]) > errD1)
 			errD1 = getAbs(y1[i] - y2[i]);
 	#ifndef SOLVER_NONE
