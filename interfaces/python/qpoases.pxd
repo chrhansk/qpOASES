@@ -342,6 +342,11 @@ cdef extern from "qpOASES.hpp" namespace "qpOASES":
         BooleanType isMember(int_t _number) const
 
 
+    cdef cppclass MessageHandling:
+        MessageHandling()
+        const char* getErrorCodeMessage(const returnValue _returnValue)
+
+
     cdef cppclass Bounds:
         Bounds()
         Bounds(int_t n)

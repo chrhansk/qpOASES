@@ -307,15 +307,18 @@ cdef class PyReturnValue:
 
 
 class QPOASESError(Exception):
-    def __init__(self, error_code):
+    def __init__(self, error_message, error_code):
         self.error_code = PyReturnValue(error_code)
-        message = f"QPOASES error {str(error_code)}"
+        message = f"QPOASES error <{str(error_code)}>: {error_message}"
         super().__init__(message)
 
 
 cdef check_return_value(returnValue retval):
+    cdef unique_ptr[MessageHandling] message_handling
     if retval != SUCCESSFUL_RETURN:
-        raise QPOASESError(retval)
+        message_handling = unique_ptr[MessageHandling](new MessageHandling())
+        message = deref(message_handling).getErrorCodeMessage(retval).decode("utf-8")
+        raise QPOASESError(message, retval)
 
 
 def check_shape(arr, name, shape):
