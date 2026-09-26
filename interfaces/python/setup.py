@@ -44,7 +44,6 @@ BASEDIR = os.path.dirname(BASEDIR)
 
 extra_params = {}
 extra_params['include_dirs'] = [
-    '/usr/include',
     os.path.join(BASEDIR, 'include'),
     os.path.join(BASEDIR, 'include', 'qpOASES'),
     np.get_include()]
@@ -53,7 +52,7 @@ extra_params['extra_link_args'] = ["-Wl,-O1", "-Wl,--as-needed"]
 extra_params = extra_params.copy()
 extra_params['libraries'] = ['qpOASES']
 
-extra_params['library_dirs'] = ['/usr/lib', os.path.join(BASEDIR, 'bin')]
+extra_params['library_dirs'] = [os.path.join(BASEDIR, 'bin')]
 extra_params['language'] = 'c++'
 
 if platform.system() in ['Linux', 'Darwin']:
