@@ -55,6 +55,18 @@ extra_params['libraries'] = ['qpOASES']
 extra_params['library_dirs'] = [os.path.join(BASEDIR, 'bin')]
 extra_params['language'] = 'c++'
 
+if "QPOASES_PREFIX" in os.environ:
+    QPOASES_PREFIX = os.environ["QPOASES_PREFIX"]
+
+    extra_params["include_dirs"] += [
+        os.path.join(QPOASES_PREFIX, "include"),
+        np.get_include(),
+    ]
+
+    extra_params["library_dirs"] += [
+        os.path.join(QPOASES_PREFIX, "lib")
+    ]
+
 if platform.system() in ['Linux', 'Darwin']:
     extra_params['extra_compile_args'] = ['-D__USE_LONG_INTEGERS__',
             '-D__USE_LONG_FINTS__']
