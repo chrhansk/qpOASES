@@ -90,7 +90,7 @@ cdef real_t* get_cputime_view(np.ndarray cputime_arr):
     if cputime_arr.item() == 0.:
         return NULL
 
-    return <real_t*> cputime_arr.data[0]
+    return <real_t*> cputime_arr.data
 
 
 cdef real_t* get_vec_view(np.ndarray vec):
@@ -1401,42 +1401,42 @@ cdef class PySolutionAnalysis:
 
     cpdef _getKktViolation_QProblemB(self,
             PyQProblemB qp,
-            np.ndarray[np.double_t, ndim=1] maxStat,
-            np.ndarray[np.double_t, ndim=1] maxFeas,
-            np.ndarray[np.double_t, ndim=1] maxCmpl
+            np.ndarray[real_t, ndim=1] maxStat,
+            np.ndarray[real_t, ndim=1] maxFeas,
+            np.ndarray[real_t, ndim=1] maxCmpl
         ):
         return self.thisptr.getKktViolation(
                 qp.thisptr.get(),
-                <real_t*> maxStat.data[0],
-                <real_t*> maxFeas.data[0],
-                <real_t*> maxCmpl.data[0]
+                <real_t*> maxStat.data,
+                <real_t*> maxFeas.data,
+                <real_t*> maxCmpl.data
             )
 
     cpdef _getKktViolation_QProblem(self,
             PyQProblem qp,
-            np.ndarray[np.double_t, ndim=1] maxStat,
-            np.ndarray[np.double_t, ndim=1] maxFeas,
-            np.ndarray[np.double_t, ndim=1] maxCmpl
+            np.ndarray[real_t, ndim=1] maxStat,
+            np.ndarray[real_t, ndim=1] maxFeas,
+            np.ndarray[real_t, ndim=1] maxCmpl
         ):
         return self.thisptr.getKktViolation(
                 qp.thisptr.get(),
-                <real_t*> maxStat.data[0],
-                <real_t*> maxFeas.data[0],
-                <real_t*> maxCmpl.data[0]
+                <real_t*> maxStat.data,
+                <real_t*> maxFeas.data,
+                <real_t*> maxCmpl.data
             )
 
 
     cpdef _getKktViolation_SQProblem(self,
             PySQProblem qp,
-            np.ndarray[np.double_t, ndim=1] maxStat,
-            np.ndarray[np.double_t, ndim=1] maxFeas,
-            np.ndarray[np.double_t, ndim=1] maxCmpl
+            np.ndarray[real_t, ndim=1] maxStat,
+            np.ndarray[real_t, ndim=1] maxFeas,
+            np.ndarray[real_t, ndim=1] maxCmpl
         ):
         return self.thisptr.getKktViolation(
                 qp.thisptr.get(),
-                <real_t*> maxStat.data[0],
-                <real_t*> maxFeas.data[0],
-                <real_t*> maxCmpl.data[0]
+                <real_t*> maxStat.data,
+                <real_t*> maxFeas.data,
+                <real_t*> maxCmpl.data
             )
 
     cpdef getVarianceCovariance(self,
