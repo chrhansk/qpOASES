@@ -78,13 +78,6 @@ if os.name == 'posix':
     #      Please fix this yourself in case of problems.
     # TODO maybe add automatic make file parsing and choose from those options
     extra_params['extra_compile_args'] += [
-        "-Wall",
-        "-pedantic",
-        "-Wshadow",
-        "-Wfloat-equal",
-        "-O3",
-        "-Wconversion",
-        "-Wsign-conversion",
         "-finline-functions",
         "-fPIC",
         "-DLINUX",
