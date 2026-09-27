@@ -51,7 +51,7 @@ extra_params['extra_link_args'] = ["-Wl,-O1", "-Wl,--as-needed"]
 
 extra_params = extra_params.copy()
 extra_params['libraries'] = ['qpOASES']
-
+extra_params['extra_compile_args'] = []
 extra_params['library_dirs'] = [os.path.join(BASEDIR, 'bin')]
 extra_params['language'] = 'c++'
 
@@ -67,15 +67,15 @@ if "QPOASES_PREFIX" in os.environ:
         os.path.join(QPOASES_PREFIX, "lib")
     ]
 
-if platform.system() in ['Linux', 'Darwin']:
-    extra_params['extra_compile_args'] = ['-D__USE_LONG_INTEGERS__',
-            '-D__USE_LONG_FINTS__']
+# if platform.system() in ['Linux', 'Darwin']:
+#     extra_params['extra_compile_args'] = ['-D__USE_LONG_INTEGERS__',
+#                                           '-D__USE_LONG_FINTS__']
 
 if platform.system() == 'Darwin':
     extra_params['include_dirs'].append(
             '/Library/Developer/CommandLineTools/usr/include/c++/v1')
     extra_params['extra_compile_args'] += ['-stdlib=libc++',
-        '-Wno-c++11-long-long']
+                                           '-Wno-c++11-long-long']
     extra_params['extra_link_args'] = ['-stdlib=libc++'] # override the others!
 
 if os.name == 'posix':
@@ -91,8 +91,6 @@ if os.name == 'posix':
         "-finline-functions",
         "-fPIC",
         "-DLINUX",
-        "-D__USE_LONG_INTEGERS__",
-        "-D__USE_LONG_FINTS__",
         "-D__NO_COPYRIGHT__",
     ]
 
