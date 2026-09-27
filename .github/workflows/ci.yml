@@ -23,16 +23,44 @@ jobs:
         run: cmake --build build --config Release --parallel
       - name: Install
         run: cmake --install build --config Release --prefix "${{ runner.temp }}/qpOASES-install"
-      - name: Build Python package
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ matrix.os }}
+          path: "${{ runner.temp }}/qpOASES-install"
+
+  python:
+    needs: build
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+        python:
+          - "3.10"
+          - "3.12"
+          - "3.14"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-${{ matrix.os }}
+          path: "${{ runner.temp }}/qpOASES-install"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install python dependencies
         working-directory: interfaces/python
-        env:
-          CFLAGS: -I${{ github.workspace }}/include
-          CXXFLAGS: -I${{ github.workspace }}/include
-          LDFLAGS: -L${{ github.workspace}}/build/libs
-          QPOASES_PREFIX: ${{ runner.temp }}/qpOASES-install
         run: |
           python -m pip install --upgrade pip build
-          python -m build
       - name: Test Python package
         working-directory: interfaces/python
         env:
