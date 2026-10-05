@@ -57,6 +57,8 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: interfaces/python/pyproject.toml
       - name: Install python dependencies
         working-directory: interfaces/python
         run: |
