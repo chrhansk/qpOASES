@@ -108,16 +108,15 @@ int main( )
 	errP2 = 0.0;
 	errP3 = 0.0;
 	#ifndef SOLVER_NONE
-	for (i = 0; i < NV; i++)
-		{
-				fprintf(stdFile, "x3[%i]=%f\n", i, x3[i]);
+	for (int i = 0; i < NV; i++) {
+		fprintf(stdFile, "x3[%i]=%f\n", i, x3[i]);
 		if (getAbs(x1[i] - x2[i]) > errP1)
 			errP1 = getAbs(x1[i] - x2[i]);
-		}
-	for (i = 0; i < NV; i++)
+	}
+	for (int i = 0; i < NV; i++)
 		if (getAbs(x1[i] - x3[i]) > errP2)
 			errP2 = getAbs(x1[i] - x3[i]);
-	for (i = 0; i < NV; i++)
+	for (int i = 0; i < NV; i++)
 		if (getAbs(x2[i] - x3[i]) > errP3)
 			errP3 = getAbs(x2[i] - x3[i]);
 	#endif /* SOLVER_NONE */
@@ -132,10 +131,10 @@ int main( )
 		if (getAbs(y1[i] - y2[i]) > errD1)
 			errD1 = getAbs(y1[i] - y2[i]);
 	#ifndef SOLVER_NONE
-	for (i = 0; i < NV+NC; i++)
+	for (int i = 0; i < NV+NC; i++)
 		if (getAbs(y1[i] - y3[i]) > errD2)
 			errD2 = getAbs(y1[i] - y3[i]);
-	for (i = 0; i < NV+NC; i++)
+	for (int i = 0; i < NV+NC; i++)
 		if (getAbs(y2[i] - y3[i]) > errD3)
 			errD3 = getAbs(y2[i] - y3[i]);
 	#endif /* SOLVER_NONE */
