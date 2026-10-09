@@ -31,7 +31,7 @@
 
 cmake_minimum_required(VERSION 3.18)
 
-PROJECT(qpOASES CXX)
+PROJECT(qpOASES C CXX)
 SET(PACKAGE_NAME "qpOASES")
 SET(PACKAGE_VERSION "3.2.2")
 SET(PACKAGE_SO_VERSION "3.2")
@@ -135,6 +135,24 @@ SET_TARGET_PROPERTIES(
     PROPERTIES
     SOVERSION ${PACKAGE_SO_VERSION}
     )
+
+############################################################
+######################### C wrapper ########################
+############################################################
+
+ADD_LIBRARY(qpOASES_wrapper interfaces/c/qpOASES_wrapper.cpp)
+TARGET_INCLUDE_DIRECTORIES(qpOASES_wrapper PUBLIC interfaces/c)
+
+TARGET_LINK_LIBRARIES(qpOASES_wrapper qpOASES)
+
+ADD_EXECUTABLE(c_example1 interfaces/c/c_example1.c)
+TARGET_LINK_LIBRARIES(c_example1 qpOASES_wrapper)
+
+ADD_EXECUTABLE(c_example1a interfaces/c/c_example1a.c)
+TARGET_LINK_LIBRARIES(c_example1a qpOASES_wrapper)
+
+ADD_EXECUTABLE(c_example1b interfaces/c/c_example1b.c)
+TARGET_LINK_LIBRARIES(c_example1b qpOASES_wrapper)
 
 # headers
 INSTALL(FILES include/qpOASES.hpp
