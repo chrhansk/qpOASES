@@ -697,7 +697,6 @@ cdef class PyConstraints:
         return self.copy()
 
 
-
 cdef class PyIndexlist:
     cdef Indexlist* thisptr
     cdef object parent
